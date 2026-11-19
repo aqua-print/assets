@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проба звернення — Aqua Print</title>
+<link rel="icon" href="https://raw.githubusercontent.com/aqua-print/assets/main/icons/zamovlennya.png">
+<style>
+  :root{
+    --paper:#F2F4F6; --card:#FFFFFF; --ink:#10151A; --soft:#5E6A70;
+    --rule:#DCE3E8; --rule-hard:#BEC7CF; --cyan:#0C7FA8;
+    --ok:#0C7FA8; --bad:#C2185B;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#14181C; --card:#1D2328; --ink:#E7EBEE; --soft:#939DA8;
+      --rule:#2B3238; --rule-hard:#3B444D; --cyan:#3FB6E4;
+      --ok:#3FB6E4; --bad:#FF6BA6;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:32px 20px;background:var(--paper);color:var(--ink);
+    font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  .wrap{max-width:620px;margin:0 auto}
+  h1{font-size:19px;margin:0 0 6px}
+  .sub{color:var(--soft);font-size:13.5px;margin:0 0 22px}
+  .box{background:var(--card);border:1px solid var(--rule);border-radius:7px;
+       padding:18px;margin-bottom:12px}
+  .t{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .t b{font-size:14px}
+  .state{font-size:13px;color:var(--soft)}
+  .state.ok{color:var(--ok);font-weight:600}
+  .state.bad{color:var(--bad);font-weight:600}
+  pre{
+    margin:0;padding:11px 12px;background:var(--paper);border:1px solid var(--rule);
+    border-radius:5px;font:12.5px/1.5 ui-monospace,Consolas,monospace;
+    white-space:pre-wrap;word-break:break-word;color:var(--soft);
+  }
+  .btn{font:inherit;font-size:14px;padding:10px 16px;border-radius:5px;cursor:pointer;
+       border:1px solid var(--cyan);background:var(--cyan);color:#fff;font-weight:500}
+  .verdict{margin-top:18px;padding:14px 16px;border-radius:6px;font-size:14.5px;display:none}
+  .verdict.on{display:block}
+  .verdict.ok{background:rgba(12,127,168,.12);border:1px solid var(--cyan)}
+  .verdict.bad{background:rgba(194,24,91,.12);border:1px solid var(--bad)}
+  .meta{color:var(--soft);font-size:12.5px;margin-top:18px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Проба звернення з іншого домену</h1>
+  <p class="sub">
+    Ця сторінка лежить не в Google. Вона лише фоново звертається до служби
+    Apps Script. Якщо запити пройдуть у браузері з кількома акаунтами —
+    задум підтверджено.
+  </p>
+
+  <div class="box">
+    <div class="t"><b>Запит GET</b><span class="state" id="s1">чекає</span></div>
+    <pre id="r1">—</pre>
+  </div>
+
+  <div class="box">
+    <div class="t"><b>Запит POST із даними</b><span class="state" id="s2">чекає</span></div>
+    <pre id="r2">—</pre>
+  </div>
+
+  <button class="btn" type="button" id="again">Спробувати ще раз</button>
+
+  <div class="verdict" id="verdict"></div>
+
+  <p class="meta">
+    Сторінка відкрита з: <span id="origin">—</span><br>
+    Служба: <span id="target">—</span>
+  </p>
+</div>
+
+<script>
+/* Адреса пробної служби Apps Script. Якщо розгорнете наново —
+   поміняйте цей рядок, більше міняти ніде не треба. */
+const API = 'https://script.google.com/macros/s/AKfycbyZPk0XbDaTQaosyxscuJ9GwewWHe9eYQn_ZK1FRV_XwEYc73ccs-WLYT58Jccq_Q5U/exec';
+
+const $ = s => document.querySelector(s);
+
+function mark(n, ok, text){
+  const s = $('#s' + n), r = $('#r' + n);
+  s.textContent = ok ? 'пройшов' : 'не пройшов';
+  s.className = 'state ' + (ok ? 'ok' : 'bad');
+  r.textContent = text;
+}
+
+function verdict(ok, text){
+  const v = $('#verdict');
+  v.textContent = text;
+  v.className = 'verdict on ' + (ok ? 'ok' : 'bad');
+}
+
+async function testGet(){
+  const url = API + '?api=1&echo=' + encodeURIComponent('привіт');
+  const res = await fetch(url, { method: 'GET' });
+  const txt = await res.text();
+  if(!res.ok) throw new Error('код ' + res.status + ': ' + txt.slice(0, 200));
+  return txt;
+}
+
+async function testPost(){
+  /* Навмисне text/plain, а не application/json: інакше браузер спершу
+     надішле службовий запит OPTIONS, на який Apps Script відповідати
+     не вміє. Сервер однаково читає тіло як JSON. */
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ замовник: 'Проба', матеріалів: 2, коли: Date.now() })
+  });
+  const txt = await res.text();
+  if(!res.ok) throw new Error('код ' + res.status + ': ' + txt.slice(0, 200));
+  return txt;
+}
+
+async function run(){
+  $('#origin').textContent = location.origin + location.pathname;
+  $('#target').textContent = API;
+  $('#verdict').className = 'verdict';
+  ['1','2'].forEach(n=>{ $('#s'+n).textContent='чекає'; $('#s'+n).className='state'; $('#r'+n).textContent='—'; });
+
+  let a = false, b = false;
+
+  try { mark(1, true, await testGet()); a = true; }
+  catch(e){ mark(1, false, String(e && e.message ? e.message : e)); }
+
+  try { mark(2, true, await testPost()); b = true; }
+  catch(e){ mark(2, false, String(e && e.message ? e.message : e)); }
+
+  if(a && b){
+    verdict(true, 'Обидва запити пройшли. Сторінка на чужому домені вільно спілкується зі службою — отже застосунок можна переносити сюди.');
+  } else if(a || b){
+    verdict(false, 'Пройшов лише один із двох. Покажіть це Клоду: видно, який саме спосіб звернення не працює.');
+  } else {
+    verdict(false, 'Не пройшов жоден запит. Покажіть текст помилок — за ними буде видно причину.');
+  }
+}
+
+$('#again').addEventListener('click', run);
+run();
+</script>
+</body>
+</html>
