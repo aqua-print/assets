@@ -1,0 +1,1 @@
+https://aqua-print.github.io/assets/icons/НАЗВА.png
