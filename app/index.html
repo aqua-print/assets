@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Замовлення на виробництво</title>
+<script>
+/* Тему ставимо до того, як сторінка намалюється. За замовчуванням світла,
+   навіть якщо в системі темна: вибір за людиною, а не за системою.
+   Хто перемкне кнопкою — тому запам'ятається. */
+(function(){
+  var t = 'light';
+  try { t = localStorage.getItem('ord:theme') || 'light'; } catch(e){}
+  document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -182,6 +192,10 @@ header.top h1{
 .logo-dark{display:none}
 :root[data-theme="dark"] .logo-light{display:none}
 :root[data-theme="dark"] .logo-dark{display:block}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .logo-light{display:none}
+  :root:not([data-theme="light"]) .logo-dark{display:block}
+}
 @media (max-width:640px){
   .logo{height:24px}
   header.top h1{font-size:19px}
@@ -2606,8 +2620,7 @@ $('#client').addEventListener('input', ()=>{
     if(b) b.textContent = BOOT.email || '—';
     return;
   }
-  const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  applyTheme(storedTheme || (sysDark ? 'dark' : 'light'));
+  applyTheme(storedTheme === 'dark' ? 'dark' : 'light');
 
   const dl = $('#matlist');
   MATERIALS.forEach(m=>{ const o=document.createElement('option'); o.value=m; dl.append(o); });
