@@ -138,20 +138,18 @@ img{max-width:100%}
   .mopen{transition:none}
   .caret{transition:none}
 }
-/* Рядок категорії: назва ліворуч, кнопки праворуч, між ними лінія.
-   Назва тягнеться на всю висоту рядка, тому лінія теж суцільна. */
-.gline{display:grid;grid-template-columns:112px 1fr;align-items:stretch}
+/* Рядок категорії: назва ліворуч, кнопки праворуч. Без ліній —
+   жирної назви досить, щоб рядки читалися окремо. */
+.gline{display:grid;grid-template-columns:112px 1fr;align-items:start}
 .gname{
   font-size:11px;color:var(--ink);font-weight:700;
   text-transform:uppercase;letter-spacing:.06em;
-  padding:11px 12px 11px 0;
-  border-right:1px solid var(--rule-hard);
+  padding:10px 12px 0 0;
 }
-.gline > div{padding:7px 0 7px 14px}
-.gline + .gline{border-top:1px solid var(--rule-hard)}
+.gline > div{padding:6px 0}
 @media (max-width:700px){
   .gline{grid-template-columns:1fr}
-  .gname{border-right:0;padding:10px 0 2px}
+  .gname{padding:10px 0 2px}
   .gline > div{padding:0 0 9px}
 }
 .gline.off > div{position:relative}
@@ -176,8 +174,7 @@ img{max-width:100%}
   font-size:12.5px;color:var(--ink);font-weight:700;
   text-transform:uppercase;letter-spacing:.09em;
   display:flex;align-items:center;gap:11px;
-  margin:30px 0 13px;padding-top:17px;
-  border-top:1px solid var(--rule-hard);
+  margin:30px 0 13px;
 }
 .lab::before{
   content:"";width:3px;align-self:stretch;min-height:15px;
@@ -257,7 +254,6 @@ label.fld > span{display:block;font-size:11px;color:var(--soft);margin-bottom:3p
 }
 
 .datewrap{position:relative}
-.ready-note{margin:5px 0 0}
 .datefield{
   width:100%;text-align:left;padding:6px 9px;
   background:var(--card);color:var(--ink);
@@ -618,8 +614,6 @@ pre.letter{
   <h1>Замовлення на виробництво</h1>
   <span class="spacer"></span>
   <span class="who-chip" id="whoChip" hidden></span>
-  <button class="thm" id="linkBtn" type="button"
-          title="Скопіювати посилання на застосунок, щоб надіслати колегам">Посилання</button>
   <button class="thm" id="mailBtn" type="button"
           title="Прив’язати пошту, щоб листи йшли з вашої скриньки">Пошта</button>
   <button class="thm" id="passBtn" type="button" hidden>Пароль</button>
@@ -645,6 +639,11 @@ pre.letter{
   <label class="fld">
     <span>Шлях до папки</span>
     <input type="text" class="mono" id="path" placeholder="F:\Друк\Ігор Лофт\2026.11.18\1" autocomplete="off">
+  </label>
+  <label class="fld">
+    <span>Або посилання</span>
+    <input type="text" id="link" placeholder="https://…" title="Коли сервер недоступний — посилання на файлообмінник"
+           autocomplete="off">
   </label>
   <label class="fld">
     <span>Менеджер</span>
@@ -678,7 +677,6 @@ pre.letter{
   </label>
 </div>
 <div class="striprow">
-  <p class="hint ready-note" id="readyNote">термін — наступний робочий день</p>
   <div class="checks inline" id="ccManagerWrap" hidden>
     <label><input type="checkbox" id="ccManager"> Копія менеджеру</label>
   </div>
@@ -1396,7 +1394,6 @@ function renderCal(){
       ? fmtDate(rFrom)+' — оберіть другий день, або клікніть по цьому ще раз'
       : fmtDate(rFrom)+'-'+fmtDate(rTo)+' — натисніть «Готово»';
 
-  $('#readyNote').hidden = !readyDefault || !rFrom;
 
   const line = rFrom ? fmtDate(rFrom) + (rTo ? '-'+fmtDate(rTo) : '') : '';
   const txt = $('#readyText');
@@ -1503,12 +1500,24 @@ function buildLines(){
 
   const path = $('#path').value.trim();
   if(path) push(path);
+  const link = $('#link').value.trim();
+  if(link) L.push({ t: link, b: false, url: /^https?:\/\//i.test(link) });
   if(prepAll()) push('підготувати усе замовлення', true);
 
   const ml = mats
     .map(m=>({t:matLine(m), tail:matTail(m)}))
     .filter(o=>o.t || o.tail.length);
-  if(ml.length){ push(''); ml.forEach(o=>L.push({t:o.t, b:false, tail:o.tail})); }
+  if(ml.length){
+    push('');
+    // Один матеріал — номер лише заважає. Кілька — у листі одразу видно,
+    // скільки їх і про який саме йдеться, коли цех перепитує.
+    const numbered = ml.length > 1;
+    ml.forEach((o, i)=>L.push({
+      t: (numbered && o.t ? (i + 1) + '. ' : '') + o.t,
+      b: false,
+      tail: o.tail
+    }));
+  }
 
   const extra = $('#extra').value.trim();
   if(extra){ push(''); extra.split('\n').forEach(s=>push(s)); }
@@ -1544,6 +1553,7 @@ function buildBody(){
 }
 
 function lineHtml(l){
+  if(l.url) return '<a href="'+escapeHtml(l.t)+'">'+escapeHtml(l.t)+'</a>';
   const base = l.b ? '<b>'+escapeHtml(l.t)+'</b>' : escapeHtml(l.t);
   return base + tailOf(l)
     .map(x=>escapeHtml(l.t ? x.sep : '') + '<b>'+escapeHtml(x.t)+'</b>')
@@ -1566,9 +1576,12 @@ function validate(){
   const filled = mats.filter(m=>m.name.trim() || (m.ptype||'').trim() || m.procs.length || (m.note||'').trim() || m.prep);
 
   if(!$('#client').value.trim()) out.push(['err','Тема порожня — без імені замовника лист не знайдеться в пошті.']);
-  if(!path) out.push(['err','Немає шляху до папки замовлення.']);
-  else if(!/^([A-Za-z]:\\|\\\\)/.test(path))
+  const link = $('#link').value.trim();
+  if(!path && !link) out.push(['err','Немає ні шляху до папки, ні посилання на файли.']);
+  if(path && !/^([A-Za-z]:\\|\\\\)/.test(path))
     out.push(['warn','Шлях не схожий на дійсний — очікується вигляд F:\\… або \\\\сервер\\…']);
+  if(link && !/^https?:\/\//i.test(link))
+    out.push(['warn','Посилання не схоже на дійсне — очікується вигляд https://…']);
 
   if(!filled.length) out.push(['err','Не додано жодного матеріалу.']);
   if(prepAll() && !PREPARE.length)
@@ -1668,6 +1681,7 @@ function update(){
 function resetForm(){
   $('#client').value = '';
   $('#path').value = '';
+  $('#link').value = '';
   $('#extra').value = '';
 
   mats = [{id:nextId++, name:'', ptype:'', procs:[], note:'', prep:false, luv:'30', open:true}];
@@ -1778,6 +1792,7 @@ function payload(){
     mode: prepAll() ? 'підготовка' : 'виробництво',
     client: $('#client').value.trim(),
     path: $('#path').value.trim(),
+    link: $('#link').value.trim(),
     manager: managerValue(),
     deadline: readyLine(),
     giveout: giveoutValue(),
@@ -1826,7 +1841,7 @@ $('#makeDraft').addEventListener('click',()=>{
 });
 
 /* ---------- wiring ---------- */
-['client','path','extra','readytime','giveoutOther','managerOther','ccExtra']
+['client','path','link','extra','readytime','giveoutOther','managerOther','ccExtra']
   .forEach(id=>$('#'+id).addEventListener('input',update));
 ['prepAll','ccMontazh','ccManager']
   .forEach(id=>$('#'+id).addEventListener('change',update));
@@ -1844,12 +1859,6 @@ function applyTheme(t){
   $('#themeBtn').textContent = t === 'dark' ? 'Світла тема' : 'Темна тема';
   remember('theme', t);
 }
-$('#linkBtn').addEventListener('click',()=>{
-  // Звичайна адреса сторінки. Жодних номерів акаунта в ній не буває:
-  // сторінка лежить на нашому домені, а не в Google.
-  copy(location.origin + location.pathname, 'Посилання на застосунок');
-});
-
 $('#mailBtn').addEventListener('click',()=>{
   const linked = BOOT.mail && BOOT.mail.linked;
   askConfirm(()=>API.login(), {
@@ -2060,6 +2069,7 @@ function openOrder(id){
 function loadOrderIntoForm(o){
   $('#client').value = o.client || '';
   $('#path').value = o.path || '';
+  $('#link').value = o.link || '';
   $('#extra').value = '';
   if(o.manager){
     const sel = $('#manager');
