@@ -762,8 +762,6 @@ pre.letter{
 
   <div class="actions">
     <button class="btn primary" id="sendOrder" type="button">Подати замовлення</button>
-    <button class="btn" id="makeDraft" type="button">Створити чернетку</button>
-    <a class="btn" id="draftLink" href="https://mail.google.com/mail/u/0/#drafts" target="_blank" rel="noopener" hidden>Відкрити чернетки</a>
     <button class="btn" id="copyBody" type="button">Копіювати текст</button>
     <button class="btn" id="copyTo" type="button">Копіювати «Кому»</button>
     <button class="btn" id="copyAll" type="button">Копіювати все</button>
@@ -773,7 +771,7 @@ pre.letter{
     <button class="btn" id="saveClient" type="button">Зберегти як картку замовника</button>
     <button class="btn" id="saveSet" type="button">Зберегти як набір</button>
   </div>
-  <p class="hint">«Подати замовлення» після підтвердження відправляє лист із вашої пошти одразу, і форма очищується. «Створити чернетку» кладе той самий лист у чернетки — форма при цьому лишається заповненою.</p>
+  <p class="hint">«Подати замовлення» після підтвердження відправляє лист із вашої пошти одразу, і форма очищується.</p>
 
 </aside>
 </div>
@@ -1805,7 +1803,7 @@ function payload(){
 }
 
 function runOnServer(method, btn, idleText, okText, clearAfter){
-  const action = method === 'sendOrder' ? 'order.send' : 'order.draft';
+  const action = 'order.send';
   btn.disabled = true; btn.textContent = 'Працюю…';
   const t0 = performance.now();
   const finish = msg => { btn.disabled = false; btn.textContent = idleText; toast(msg); };
@@ -1813,7 +1811,6 @@ function runOnServer(method, btn, idleText, okText, clearAfter){
   API.call(action, payload())
     .then(()=>{
       perfMark(action, performance.now() - t0, files.length + ' файлів');
-      if(action === 'order.draft') $('#draftLink').hidden = false;
       if(action === 'order.send') journalCache = null;   // у журналі з'явився новий рядок
       finish(okText);
       if(clearAfter) resetForm();
@@ -1833,11 +1830,6 @@ function readyToGo(){
 $('#sendOrder').addEventListener('click',()=>{
   if(!readyToGo()) return;
   askConfirm(()=>runOnServer('sendOrder', $('#sendOrder'), 'Подати замовлення', 'Замовлення подано', true));
-});
-
-$('#makeDraft').addEventListener('click',()=>{
-  if(!readyToGo()) return;
-  runOnServer('createOrderDraft', $('#makeDraft'), 'Створити чернетку', 'Чернетку створено', false);
 });
 
 /* ---------- wiring ---------- */
