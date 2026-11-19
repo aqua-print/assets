@@ -1,0 +1,2861 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Замовлення на виробництво</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F4F6;
+  --card:#FFFFFF;
+  --sunk:#E8ECEF;
+  --ink:#10151A;
+  --soft:#5E6A76;
+  --rule:#DFE4E9;
+  --rule-hard:#BEC7CF;
+  --cyan:#0C7FA8;
+  --cyan-fill:#E0F2F9;
+  --alert:#B3005C;
+  --alert-fill:#FBDFEC;
+  --warn:#8A6A00;
+  --warn-fill:#F8EFD2;
+  --focus:#0C7FA8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14181C;
+    --card:#1D2328;
+    --sunk:#171C21;
+    --ink:#E7EBEE;
+    --soft:#939DA8;
+    --rule:#2B3238;
+    --rule-hard:#3B444D;
+    --cyan:#3FB6E4;
+    --cyan-fill:#0E2E3C;
+    --alert:#FF6BA6;
+    --alert-fill:#3A1226;
+    --warn:#E3AE46;
+    --warn-fill:#332708;
+    --focus:#3FB6E4;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14181C;
+  --card:#1D2328;
+  --sunk:#171C21;
+  --ink:#E7EBEE;
+  --soft:#939DA8;
+  --rule:#2B3238;
+  --rule-hard:#3B444D;
+  --cyan:#3FB6E4;
+  --cyan-fill:#0E2E3C;
+  --alert:#FF6BA6;
+  --alert-fill:#3A1226;
+  --warn:#E3AE46;
+  --warn-fill:#332708;
+  --focus:#3FB6E4;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+}
+img{max-width:100%}
+
+.wrap{max-width:1280px;margin:0 auto;padding:16px 20px 48px}
+
+/* смуга параметрів */
+.strip{
+  background:var(--card);border:1px solid var(--rule);border-radius:5px;
+  padding:10px 12px;margin-bottom:8px;
+  display:grid;grid-template-columns:1.1fr 2.2fr 1.1fr .9fr .6fr;gap:9px;
+}
+@media (max-width:1000px){.strip{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.strip{grid-template-columns:1fr}}
+.striprow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.striprow .hint{margin:0}
+.checks.inline{flex-direction:row;gap:14px}
+.inline-fld{max-width:240px}
+
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:12px}
+@media (max-width:860px){.row3{grid-template-columns:1fr}}
+.checks.spaced{gap:14px;margin-top:14px}
+.checks.spaced label{
+  display:grid;grid-template-columns:15px 1fr;gap:9px;align-items:start;
+}
+.checks.spaced label > input{margin:2px 0 0}
+.checks.spaced label > span{line-height:1.45}
+.checks.spaced em{display:block;font-style:normal;font-size:12px;color:var(--soft);
+  line-height:1.45;margin-top:2px}
+
+/* картка матеріалу */
+.mcard{background:var(--sunk);border:1px solid var(--rule);border-radius:5px;margin-bottom:7px}
+.mhead{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer}
+.mhead:hover{background:rgba(127,127,127,.06)}
+.mnum{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--soft);width:12px;flex:none}
+.mname{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.mname.empty{color:var(--soft);font-weight:400;font-style:italic}
+.mproc{flex:1;display:flex;gap:4px;flex-wrap:wrap;min-width:0}
+.mini{font-size:10.5px;padding:1px 6px;border-radius:5px;background:var(--cyan-fill);color:var(--cyan);white-space:nowrap}
+.mini.w{background:var(--alert-fill);color:var(--alert)}
+.mini.t{background:var(--card);color:var(--soft);border:1px solid var(--rule-hard);
+  font-family:"IBM Plex Mono",monospace}
+.caret{color:var(--soft);font-size:11px;white-space:nowrap;flex:none}
+.mopen{
+  background:var(--card);border-top:1px solid var(--rule);
+  padding:10px 12px;overflow:hidden;
+  max-height:2400px;opacity:1;
+  transition:max-height .24s ease, opacity .18s ease,
+             padding-top .24s ease, padding-bottom .24s ease, border-width .24s ease;
+}
+.mopen.closed{max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-top-width:0}
+.caret{transition:transform .2s ease}
+@media (prefers-reduced-motion:reduce){
+  .mopen{transition:none}
+  .caret{transition:none}
+}
+/* Рядок категорії: назва ліворуч, кнопки праворуч, між ними лінія.
+   Назва тягнеться на всю висоту рядка, тому лінія теж суцільна. */
+.gline{display:grid;grid-template-columns:112px 1fr;align-items:stretch}
+.gname{
+  font-size:11px;color:var(--ink);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;
+  padding:11px 12px 11px 0;
+  border-right:1px solid var(--rule-hard);
+}
+.gline > div{padding:7px 0 7px 14px}
+.gline + .gline{border-top:1px solid var(--rule-hard)}
+@media (max-width:700px){
+  .gline{grid-template-columns:1fr}
+  .gname{border-right:0;padding:10px 0 2px}
+  .gline > div{padding:0 0 9px}
+}
+.gline.off > div{position:relative}
+.gline.off .chips{opacity:.62;filter:grayscale(1);pointer-events:none}
+.gline.off .gname{opacity:.45}
+.ghint{
+  position:absolute;inset:0;margin:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:500;color:var(--alert);
+  background:none;
+  pointer-events:none;
+}
+.ghint span{
+  background:var(--alert-fill);padding:3px 12px;border-radius:5px;
+  opacity:.72;
+}
+.mtwo{display:grid;grid-template-columns:1fr 150px;gap:8px}
+/* Заголовок великого розділу форми — «Видача», «Візуалізації».
+   Лінія згори відрізає його від матеріалів, тож видно, що почалося
+   щось своє, вже не пов'язане з конкретним матеріалом. */
+.lab{
+  font-size:12.5px;color:var(--ink);font-weight:700;
+  text-transform:uppercase;letter-spacing:.09em;
+  display:flex;align-items:center;gap:11px;
+  margin:30px 0 13px;padding-top:17px;
+  border-top:1px solid var(--rule-hard);
+}
+.lab::before{
+  content:"";width:3px;align-self:stretch;min-height:15px;
+  background:var(--cyan);border-radius:2px;
+}
+
+header.top{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;
+  padding-bottom:14px;margin-bottom:26px;
+  border-bottom:2px solid var(--rule-hard);
+}
+header.top h1{
+  font-size:23px;font-weight:600;letter-spacing:-.01em;margin:0;
+}
+.logo{height:30px;width:auto;flex:none;align-self:center}
+.logo-dark{display:none}
+:root[data-theme="dark"] .logo-light{display:none}
+:root[data-theme="dark"] .logo-dark{display:block}
+@media (max-width:640px){
+  .logo{height:24px}
+  header.top h1{font-size:19px}
+}
+header.top .code{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:12.5px;color:var(--soft);
+}
+header.top .spacer{flex:1}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr);gap:28px}}
+
+section.block{margin-bottom:26px}
+section.block > h2{
+  font-size:13px;font-weight:600;margin:0 0 10px;color:var(--soft);
+  display:flex;align-items:center;gap:10px;
+}
+section.block > h2::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+label.fld{display:block;margin-bottom:0}
+label.fld > span{display:block;font-size:11px;color:var(--soft);margin-bottom:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media (max-width:520px){.row2{grid-template-columns:1fr}}
+
+.who-chip{display:flex;flex-direction:column;line-height:1.25;text-align:right}
+.who-chip b{font-size:12.5px;font-weight:500;color:var(--ink)}
+.who-chip span{font-size:11px;color:var(--soft)}
+.thm{
+  background:none;border:1px solid var(--rule-hard);border-radius:5px;color:var(--soft);
+  font:inherit;font-size:12.5px;padding:4px 10px;cursor:pointer;
+}
+.thm:hover{color:var(--ink);border-color:var(--ink)}
+
+.drop{
+  border:1px dashed var(--rule-hard);border-radius:5px;
+  padding:26px 16px;text-align:center;background:var(--card);font-size:13.5px;
+}
+.drop.over{border-color:var(--cyan);background:var(--cyan-fill)}
+.drop p{margin:0;font-size:14px}
+.files{list-style:none;margin:10px 0 0;padding:0}
+.files li{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 10px;margin-bottom:5px;
+  background:var(--card);border:1px solid var(--rule);border-radius:5px;
+  font-size:13.5px;
+}
+.files .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files .fsize{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--soft);flex:none}
+.files img{width:34px;height:34px;object-fit:cover;border-radius:5px;flex:none}
+.files .fdoc{
+  width:34px;height:34px;flex:none;border-radius:5px;background:var(--sunk);
+  display:flex;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);
+}
+
+.datewrap{position:relative}
+.ready-note{margin:5px 0 0}
+.datefield{
+  width:100%;text-align:left;padding:6px 9px;
+  background:var(--card);color:var(--ink);
+  border:1px solid var(--rule-hard);border-radius:5px;
+  font:inherit;font-size:15px;line-height:1.4;cursor:pointer;
+}
+.datefield:hover{border-color:var(--ink)}
+.datefield .ph{color:var(--soft)}
+.cal{
+  position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:274px;
+  background:var(--card);border:1px solid var(--rule-hard);border-radius:5px;
+  padding:10px;box-shadow:0 8px 22px rgba(0,0,0,.16);
+}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:13.5px;font-weight:500}
+.cal-nav{
+  background:none;border:1px solid var(--rule);border-radius:5px;color:var(--ink);
+  font:inherit;font-size:16px;line-height:1;padding:3px 10px;cursor:pointer;
+}
+.cal-nav:hover{border-color:var(--ink)}
+.cal-dow,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow div{font-size:11px;color:var(--soft);text-align:center;padding-bottom:5px}
+.cal-day{
+  font:inherit;font-size:13px;padding:6px 0;
+  border:none;background:none;color:var(--ink);cursor:pointer;border-radius:5px;
+}
+.cal-day.out{color:var(--soft);opacity:.45}
+.cal-day:hover{background:var(--sunk)}
+.cal-day.in{background:var(--cyan-fill);color:var(--cyan)}
+.cal-day.edge{background:var(--cyan);color:var(--card);font-weight:500}
+.cal-hint{margin:9px 0 0;font-size:12px;color:var(--soft);text-align:center;min-height:16px}
+.cal-foot{display:flex;justify-content:space-between;margin-top:9px;padding-top:8px;border-top:1px solid var(--rule)}
+
+input[type=text],input[type=date],input[type=time],select{height:32px}
+input[type=text],input[type=date],input[type=time],textarea,select{
+  width:100%;padding:6px 9px;line-height:1.4;
+  background:var(--card);color:var(--ink);
+  border:1px solid var(--rule-hard);border-radius:5px;
+  font-family:inherit;font-size:15px;line-height:1.4;
+}
+input.mono,textarea.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:13px}
+textarea{resize:vertical;min-height:72px}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{
+  outline:2px solid var(--focus);outline-offset:1px;
+}
+select{appearance:none;background-image:none}
+
+.mat{
+  background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--cyan);
+  padding:13px 14px;margin-bottom:10px;border-radius:5px;
+}
+.mat-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.mat-head input{flex:1}
+.mat-n{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--soft);
+  min-width:18px;
+}
+.chipbox{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+.chipcap{
+  display:flex;align-items:center;gap:8px;margin-top:6px;
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);
+}
+.chipcap:first-child{margin-top:0}
+.chipcap::after{content:"";flex:1;height:1px;background:var(--rule)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.fldlab{display:block;font-size:12.5px;color:var(--soft);margin-bottom:4px}
+.chip.post[aria-pressed=true]{
+  background:var(--warn-fill);color:var(--warn);border-color:var(--warn);
+}
+.chip{
+  font:inherit;font-size:12px;white-space:nowrap;flex:none;
+  padding:4px 8px;border-radius:5px;cursor:pointer;
+  background:transparent;color:var(--soft);
+  border:1px dashed var(--rule-hard);
+  display:inline-flex;align-items:center;gap:6px;
+}
+.chip:hover:not(:disabled){color:var(--ink);border-color:var(--ink)}
+.chip:disabled{opacity:.3;cursor:not-allowed}
+.chip[aria-pressed=true]{
+  background:var(--cyan-fill);color:var(--cyan);
+  border:1px solid var(--cyan);font-weight:500;
+}
+.chip .ord{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;
+  background:var(--cyan);color:var(--card);
+  border-radius:5px;padding:0 4px;
+}
+.mat-ptype{flex:none;width:110px}
+.luvrow{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--soft)}
+.luvrow input{width:64px;padding:5px 8px;font-size:13px;text-align:center}
+.mat-note{margin-top:10px;font-size:13.5px;padding:7px 10px}
+.prep{
+  flex:none;padding:6px 11px;white-space:nowrap;
+  font:inherit;font-size:13px;cursor:pointer;border-radius:5px;
+  background:transparent;color:var(--soft);border:1px dashed var(--rule-hard);
+}
+.prep:hover{color:var(--ink);border-color:var(--ink)}
+.prep[aria-pressed=true]{
+  background:var(--alert-fill);color:var(--alert);border:1px solid var(--alert);
+  font-weight:600;letter-spacing:.02em;
+}
+.chain{
+  margin-top:10px;font-family:"IBM Plex Mono",monospace;font-size:13px;
+  color:var(--ink);word-break:break-word;
+}
+.chain.empty{color:var(--soft)}
+.mat-tools{margin-top:10px;display:flex;gap:14px}
+.linkbtn{
+  background:none;border:none;padding:0;cursor:pointer;
+  font:inherit;font-size:12.5px;color:var(--soft);text-decoration:underline;
+}
+.linkbtn:hover{color:var(--ink)}
+.linkbtn.danger:hover{color:var(--alert)}
+.linkbtn.done{color:var(--cyan);font-weight:600;text-decoration:none}
+.linkbtn.done:hover{color:var(--cyan);text-decoration:underline}
+
+.addmat{
+  width:100%;padding:9px;cursor:pointer;
+  background:transparent;border:1px dashed var(--rule-hard);border-radius:5px;
+  font:inherit;font-size:13.5px;color:var(--soft);
+}
+.addmat:hover{border-color:var(--cyan);color:var(--cyan)}
+
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:9px;align-items:flex-start;font-size:14px;cursor:pointer}
+.checks input{margin:3px 0 0;flex:none;accent-color:var(--cyan)}
+
+/* ---- preview column ---- */
+.side{position:sticky;top:20px}
+@media (max-width:900px){.side{position:static}}
+
+.panel{
+  background:var(--card);border:1px solid var(--rule);border-radius:5px;
+  margin-bottom:16px;
+}
+.panel > h3{
+  font-size:11px;font-weight:600;color:var(--soft);margin:0;letter-spacing:.05em;
+  text-transform:uppercase;padding:7px 11px;border-bottom:1px solid var(--rule);
+}
+.panel .body{padding:10px 11px}
+
+.addr{margin:0;padding:0;list-style:none}
+.addr li{
+  font-family:"IBM Plex Mono",monospace;font-size:12.5px;
+  padding:3px 0;display:flex;gap:8px;align-items:baseline;
+}
+.addr li .who{font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;color:var(--soft)}
+.addr .none{font-family:"IBM Plex Sans",sans-serif;font-size:13px;color:var(--soft)}
+
+pre.letter{
+  margin:0;padding:10px 11px;
+  background:var(--sunk);border:1px solid var(--rule);
+  font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;
+  max-height:52vh;overflow:auto;
+}
+
+.issues{margin:0;padding:0;list-style:none}
+.issues li{
+  font-size:13.5px;padding:6px 10px;margin-bottom:6px;border-radius:5px;
+  border-left:3px solid;
+}
+.issues li:last-child{margin-bottom:0}
+.issues li.err{background:var(--alert-fill);border-color:var(--alert);color:var(--ink)}
+.issues li.warn{background:var(--warn-fill);border-color:var(--warn);color:var(--ink)}
+.issues li.ok{background:var(--cyan-fill);border-color:var(--cyan);color:var(--ink)}
+
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{
+  font:inherit;font-size:14px;padding:9px 14px;border-radius:5px;cursor:pointer;
+  border:1px solid var(--rule-hard);background:var(--card);color:var(--ink);
+  text-decoration:none;display:inline-block;
+}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--cyan);border-color:var(--cyan);color:#fff;font-weight:500}
+.thm.warn{border-color:var(--alert);color:var(--alert);font-weight:600}
+:root[data-theme="dark"] .btn.primary{color:#0B1B22}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0B1B22}}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--alert);border-color:var(--rule-hard)}
+.btn.danger:hover{border-color:var(--alert)}
+
+.hint{font-size:12.5px;color:var(--soft);margin:10px 0 0}
+.hint code{font-family:"IBM Plex Mono",monospace;font-size:12px}
+
+.ovl{
+  position:fixed;inset:0;z-index:60;padding:20px;
+  background:rgba(0,0,0,.45);
+  display:flex;align-items:center;justify-content:center;
+}
+.modal{
+  width:100%;max-width:420px;
+  background:var(--card);border:1px solid var(--rule-hard);border-radius:5px;
+  padding:20px;box-shadow:0 14px 36px rgba(0,0,0,.3);
+}
+.modal h4{margin:0 0 10px;font-size:17px;font-weight:600}
+.msum{
+  margin:0 0 18px;font-size:13.5px;line-height:1.6;color:var(--soft);
+  white-space:pre-line;word-break:break-word;
+}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+
+.tabs{display:flex;gap:4px;margin:-10px 0 22px;flex-wrap:wrap}
+.tab{
+  font:inherit;font-size:13.5px;padding:7px 14px;cursor:pointer;
+  background:none;border:1px solid transparent;border-radius:5px;color:var(--soft);
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{
+  background:var(--card);border-color:var(--rule-hard);color:var(--ink);font-weight:500;
+}
+
+.jbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.jbar input[type=text]{flex:1;min-width:220px}
+.jall{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--soft);white-space:nowrap}
+.jall input{accent-color:var(--cyan)}
+
+.jrow{
+  display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;
+  padding:9px 0;border-bottom:1px solid var(--rule);cursor:pointer;
+}
+.jrow:last-child{border-bottom:none}
+.jrow:hover .jclient{text-decoration:underline}
+.jdate{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--soft);flex:none;width:92px}
+.jclient{font-size:14px;font-weight:500;flex:1;min-width:120px}
+.jmeta{font-size:12.5px;color:var(--soft)}
+.jtag{
+  font-size:11px;padding:1px 7px;border-radius:5px;
+  background:var(--warn-fill);color:var(--warn);
+}
+
+.cgroup{margin-bottom:22px}
+.cgroup h4{margin:0 0 8px;font-size:12.5px;color:var(--soft);font-weight:600}
+.crow{
+  padding:11px 0;border-bottom:1px solid var(--rule);
+  display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;
+}
+.crow:last-child{border-bottom:none}
+.cname{font-size:14px;font-weight:500;flex:1;min-width:120px}
+.cmeta{font-size:12.5px;color:var(--soft)}
+.cacts{display:flex;gap:12px;flex-wrap:wrap}
+
+.sets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;width:100%}
+.setbtn{
+  font:inherit;font-size:12px;padding:4px 9px;cursor:pointer;
+  background:var(--cyan-fill);color:var(--cyan);
+  border:1px solid var(--cyan);border-radius:5px;
+}
+
+.atable{width:100%;border-collapse:collapse;font-size:13px}
+.atable th,.atable td{
+  text-align:left;padding:7px 8px;border-bottom:1px solid var(--rule);vertical-align:middle;
+}
+.atable th{font-size:11.5px;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}
+.atable input[type=text]{padding:5px 8px;font-size:13px}
+.atable input[type=checkbox]{accent-color:var(--cyan)}
+.asec{margin-bottom:14px;border:1px solid var(--rule);border-radius:5px;background:var(--card)}
+.asec-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:0;padding:9px 12px;cursor:pointer;user-select:none;
+}
+.asec-head:hover{background:rgba(127,127,127,.06)}
+.asec-body{
+  overflow:hidden;max-height:6000px;opacity:1;padding:0 12px 12px;
+  transition:max-height .26s ease, opacity .2s ease, padding-bottom .26s ease;
+}
+.asec-body.closed{max-height:0;opacity:0;padding-bottom:0}
+.ascroll{overflow-x:auto;overflow-y:hidden}
+.ascroll > .atable{min-width:560px}
+@media (prefers-reduced-motion:reduce){.asec-body{transition:none}}
+.asec h3{font-size:12px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+  background:var(--ink);color:var(--paper);
+  padding:9px 16px;border-radius:5px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:opacity .18s;
+  z-index:50;
+}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* плашка «вийшла нова версія» */
+.upd{
+  position:fixed;right:18px;top:76px;max-width:300px;
+  display:flex;flex-direction:column;gap:8px;
+  background:var(--card);color:var(--ink);
+  border:1px solid var(--rule-hard);border-left:3px solid var(--cyan);
+  border-radius:6px;padding:11px 13px;font-size:13px;line-height:1.4;
+  box-shadow:0 6px 20px rgba(0,0,0,.14);
+  opacity:0;transform:translateY(-8px);pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+  z-index:60;
+}
+.upd.on{opacity:1;transform:none;pointer-events:auto}
+.upd b{font-size:12.5px;font-weight:600;display:block;margin-bottom:2px}
+.upd .updrow{display:flex;gap:6px;justify-content:flex-end}
+@media (prefers-reduced-motion:reduce){.upd{transition:none}}
+@media (max-width:560px){.upd{left:12px;right:12px;top:12px;max-width:none}}
+
+/* Вікно входу. Накриває все, поки людина не увійшла. */
+.gate{
+  position:fixed;inset:0;z-index:100;background:var(--paper);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.gate-box{
+  width:100%;max-width:400px;background:var(--card);
+  border:1px solid var(--rule);border-radius:8px;padding:26px 24px;text-align:center;
+}
+.gate .logo{height:30px;margin-bottom:16px}
+.gate h2{font-size:17px;margin:0 0 6px}
+.gate p{color:var(--soft);font-size:13.5px;margin:0 0 18px}
+.gate .btn{width:100%;text-align:center}
+.gate-alt{margin-top:14px;font-size:13px}
+.gate-alt button{
+  background:none;border:0;padding:0;color:var(--cyan);
+  cursor:pointer;font:inherit;text-decoration:underline;
+}
+.gate-form{margin-top:16px;display:flex;flex-direction:column;gap:9px;text-align:left}
+.gate-form input{
+  font:inherit;font-size:14px;padding:9px 11px;border-radius:5px;
+  border:1px solid var(--rule-hard);background:var(--card);color:var(--ink);
+}
+.gate-err{
+  margin-top:14px;padding:10px 12px;border-radius:5px;font-size:13.5px;text-align:left;
+  background:var(--alert-fill);border:1px solid var(--alert);color:var(--alert);
+}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <div id="gateLogo"></div>
+    <h2>Замовлення на виробництво</h2>
+    <p id="gateWait">Хвилинку…</p>
+
+    <div id="gateControls" hidden>
+      <p>Увійдіть, щоб подавати замовлення.</p>
+      <button class="btn primary" type="button" id="gateGoogle">Увійти через Google</button>
+      <div class="gate-alt">
+        <button type="button" id="gatePass">Увійти за паролем</button>
+      </div>
+      <div class="gate-form" id="gatePassForm" hidden>
+        <input id="gateMail" type="email" placeholder="пошта" autocomplete="username">
+        <input id="gateWord" type="password" placeholder="пароль" autocomplete="current-password">
+        <button class="btn" type="button" id="gateGo">Увійти</button>
+      </div>
+    </div>
+
+    <div class="gate-err" id="gateErr" hidden></div>
+  </div>
+</div>
+<div class="wrap">
+
+<header class="top">
+  <img class="logo logo-light" src="data:image/png;base64,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" alt="Aqua Print">
+  <img class="logo logo-dark" src="data:image/png;base64,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" alt="Aqua Print">
+  <h1>Замовлення на виробництво</h1>
+  <span class="spacer"></span>
+  <span class="who-chip" id="whoChip" hidden></span>
+  <button class="thm" id="linkBtn" type="button"
+          title="Скопіювати посилання на застосунок, щоб надіслати колегам">Посилання</button>
+  <button class="thm" id="mailBtn" type="button"
+          title="Прив’язати пошту, щоб листи йшли з вашої скриньки">Пошта</button>
+  <button class="thm" id="passBtn" type="button" hidden>Пароль</button>
+  <button class="thm" id="logoutBtn" type="button">Вийти</button>
+  <button class="thm" id="themeBtn" type="button">Темна тема</button>
+  <span class="code">ORDER-STD-01</span>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab" data-view="form" type="button">Форма</button>
+  <button class="tab" data-view="journal" type="button">Журнал</button>
+  <button class="tab" data-view="clients" type="button">Замовники</button>
+  <button class="tab" data-view="admin" type="button" hidden>Адміністрування</button>
+</nav>
+
+<!-- ================= СМУГА ПАРАМЕТРІВ ================= -->
+<div id="view-form">
+<div class="strip">
+  <label class="fld">
+    <span>Замовник</span>
+    <input type="text" id="client" placeholder="Ігор Лофт" autocomplete="off">
+  </label>
+  <label class="fld">
+    <span>Шлях до папки</span>
+    <input type="text" class="mono" id="path" placeholder="F:\Друк\Ігор Лофт\2026.11.18\1" autocomplete="off">
+  </label>
+  <label class="fld">
+    <span>Менеджер</span>
+    <select id="manager"></select>
+  </label>
+  <label class="fld">
+    <span>Готовність</span>
+    <div class="datewrap">
+      <button type="button" class="datefield" id="readyBtn" aria-haspopup="dialog" aria-expanded="false">
+        <span id="readyText" class="ph">Обрати дату</span>
+      </button>
+      <div class="cal" id="cal" hidden role="dialog" aria-label="Термін готовності">
+        <div class="cal-head">
+          <button type="button" class="cal-nav" id="calPrev" aria-label="Попередній місяць">‹</button>
+          <span id="calTitle"></span>
+          <button type="button" class="cal-nav" id="calNext" aria-label="Наступний місяць">›</button>
+        </div>
+        <div class="cal-dow"><div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Нд</div></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <p class="cal-hint" id="calHint"></p>
+        <div class="cal-foot">
+          <button type="button" class="linkbtn" id="calClear">Очистити</button>
+          <button type="button" class="linkbtn done" id="calDone">Готово</button>
+        </div>
+      </div>
+    </div>
+  </label>
+  <label class="fld">
+    <span>Час</span>
+    <input type="time" id="readytime">
+  </label>
+</div>
+<div class="striprow">
+  <p class="hint ready-note" id="readyNote">термін — наступний робочий день</p>
+  <div class="checks inline" id="ccManagerWrap" hidden>
+    <label><input type="checkbox" id="ccManager"> Копія менеджеру</label>
+  </div>
+  <label class="fld inline-fld" id="manager-other-wrap" hidden>
+    <span>Ім'я менеджера</span>
+    <input type="text" id="managerOther" autocomplete="off">
+  </label>
+</div>
+
+<div class="grid">
+
+<!-- ================= FORM ================= -->
+<main>
+
+  <div id="mats"></div>
+  <datalist id="matlist"></datalist>
+  <div class="sets" id="setBar" hidden></div>
+  <button class="addmat" id="addmat" type="button">Додати матеріал</button>
+
+  <p class="lab">Видача</p>
+  <div class="chips" id="giveoutChips"></div>
+
+  <div class="row3">
+    <label class="fld">
+      <span id="giveoutLabel">Уточнення по доставці — не обов'язково</span>
+      <input type="text" id="giveoutOther" autocomplete="off">
+    </label>
+    <label class="fld">
+      <span>Додаткова інформація</span>
+      <input type="text" id="extra" placeholder="Склейку робити після висихання друку" autocomplete="off">
+    </label>
+    <label class="fld">
+      <span>Інші адреси в копію, через кому</span>
+      <input type="text" class="mono" id="ccExtra" placeholder="manager@example.com" autocomplete="off">
+    </label>
+  </div>
+
+  <div class="checks spaced">
+    <label>
+      <input type="checkbox" id="prepAll">
+      <span>Підготувати усе замовлення
+        <em id="prepAllNote">лист піде тільки на підготовку макетів, цехи його не отримають, а в копії лишаться пошти керівників напрямків</em>
+      </span>
+    </label>
+    <label>
+      <input type="checkbox" id="ccMontazh">
+      <span>Наш монтаж</span>
+    </label>
+  </div>
+
+  <p class="lab">Візуалізації</p>
+  <div class="drop" id="drop">
+    <input type="file" id="fileInput" multiple accept="image/*,application/pdf" hidden>
+    <p>Перетягніть файли сюди або <button type="button" class="linkbtn" id="pickFiles">оберіть на диску</button></p>
+    <p class="hint" style="margin:6px 0 0" id="dropHint">Не більше 10 файлів, 20 МБ разом. Прикріпляться до листа — не забудьте продублювати їх у корені папки замовлення.</p>
+  </div>
+  <ul class="files" id="fileList"></ul>
+
+</main>
+
+<!-- ================= PREVIEW ================= -->
+<aside class="side">
+
+  <div class="panel">
+    <h3>Перевірка</h3>
+    <div class="body"><ul class="issues" id="issues"></ul></div>
+  </div>
+
+  <div class="panel">
+    <h3>Кому</h3>
+    <div class="body"><ul class="addr" id="toList"></ul></div>
+  </div>
+
+  <div class="panel" id="ccPanel" hidden>
+    <h3>Копія</h3>
+    <div class="body"><ul class="addr" id="ccList"></ul></div>
+  </div>
+
+  <div class="panel">
+    <h3>Лист</h3>
+    <pre class="letter" id="letter"></pre>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="sendOrder" type="button">Подати замовлення</button>
+    <button class="btn" id="makeDraft" type="button">Створити чернетку</button>
+    <a class="btn" id="draftLink" href="https://mail.google.com/mail/u/0/#drafts" target="_blank" rel="noopener" hidden>Відкрити чернетки</a>
+    <button class="btn" id="copyBody" type="button">Копіювати текст</button>
+    <button class="btn" id="copyTo" type="button">Копіювати «Кому»</button>
+    <button class="btn" id="copyAll" type="button">Копіювати все</button>
+    <button class="btn danger" id="clearAll" type="button">Очистити</button>
+  </div>
+  <div class="actions" style="margin-top:8px">
+    <button class="btn" id="saveClient" type="button">Зберегти як картку замовника</button>
+    <button class="btn" id="saveSet" type="button">Зберегти як набір</button>
+  </div>
+  <p class="hint">«Подати замовлення» після підтвердження відправляє лист із вашої пошти одразу, і форма очищується. «Створити чернетку» кладе той самий лист у чернетки — форма при цьому лишається заповненою.</p>
+
+</aside>
+</div>
+</div>
+
+<!-- ================= ЖУРНАЛ ================= -->
+<section id="view-journal" hidden>
+  <div class="jbar">
+    <input type="text" id="jQuery" placeholder="пошук за замовником, темою або автором" autocomplete="off">
+    <label class="jall" id="jAllWrap" hidden><input type="checkbox" id="jAll"> усі замовлення</label>
+    <button class="btn" id="jReload" type="button">Оновити</button>
+  </div>
+  <div class="panel"><div class="body" id="jList">Завантаження…</div></div>
+</section>
+
+<!-- ================= ЗАМОВНИКИ ================= -->
+<section id="view-clients" hidden>
+  <p class="hint" style="margin:0 0 14px">
+    Картка підставляє службові поля при виборі замовника у формі.
+    Набори матеріалів додаються окремою кнопкою і нічого не замінюють.
+  </p>
+  <div class="panel"><div class="body" id="cList">Завантаження…</div></div>
+</section>
+
+<!-- ================= АДМІНІСТРУВАННЯ ================= -->
+<section id="view-admin" hidden>
+  <div class="panel"><div class="body" id="aBody">Завантаження…</div></div>
+</section>
+
+</div>
+
+<div class="ovl" id="ovl" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ovlTitle">
+    <h4 id="ovlTitle">Подати замовлення в роботу?</h4>
+    <p class="msum" id="ovlSum"></p>
+    <div class="modal-actions">
+      <button class="btn" type="button" id="ovlNo">Скасувати</button>
+      <button class="btn primary" type="button" id="ovlYes">Так, подати</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+</div>
+
+<script>
+/* ============================================================
+ *  Служба
+ *
+ *  Сторінка лежить на власному домені, тому відкривається завжди
+ *  й у будь-кого. До Apps Script вона звертається тільки фоновими
+ *  запитами, а ті не несуть куків Google — отже Google не намагається
+ *  вгадати, чий це акаунт, і номер на кшталт /u/2/ ніде не виникає.
+ *  Саме через нього нинішній застосунок і не відкривався в половини.
+ * ============================================================ */
+
+/* Адреса розгорнутої служби Apps Script, та, що закінчується на /exec.
+   Міняється тільки тут. */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzSOcM0Ynkh50w6N4ltmfVkbi_LeATs8L3RKmCdJea5opeuZFZCZhwPeLV5TGVtRRJw/exec';
+
+const API = {
+  key: 'aqua_session',
+
+  session(){ try { return localStorage.getItem(API.key) || ''; } catch(e){ return ''; } },
+  remember(id){
+    try { id ? localStorage.setItem(API.key, id) : localStorage.removeItem(API.key); }
+    catch(e){}
+  },
+
+  async call(action, payload){
+    let res;
+    try {
+      res = await fetch(API_URL, {
+        method: 'POST',
+        /* Навмисне text/plain: з application/json браузер спершу надсилає
+           службовий запит OPTIONS, на який Apps Script відповідати не вміє.
+           Служба однаково читає тіло як JSON. */
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, session: API.session(), payload: payload || {} })
+      });
+    } catch(e){
+      throw new Error('Немає зв’язку зі службою');
+    }
+    const txt = await res.text();
+    let out;
+    try { out = JSON.parse(txt); }
+    catch(e){ throw new Error('Служба відповіла не так, як очікувалось'); }
+    if(!out.ok) throw new Error(out.error || 'Помилка служби');
+    return out.data;
+  },
+
+  async login(){
+    const r = await API.call('auth.url');
+    location.href = r.url;
+  },
+
+  async logout(){
+    try { await API.call('auth.out'); } catch(e){}
+    API.remember('');
+    location.href = location.pathname;
+  }
+};
+</script>
+
+<script>
+function startApp(){
+// Довідники приходять із бази — у коді їх більше немає.
+const BOOT = window.__BOOT__ || {};
+const CFG  = BOOT.config || { departments: [], processes: [], managers: [], prepare: [] };
+const ME   = BOOT.user || {};
+
+const DEPTS = {};
+CFG.departments.forEach(d=>{ DEPTS[d.key] = { mail: d.mail, who: d.title, head: d.head }; });
+
+const PROCESSES = CFG.processes;
+
+// Ряди кнопок складаються з груп у тому порядку, в якому процеси лежать у базі.
+const PROC_ROWS = (function(){
+  const rows = [], seen = {};
+  PROCESSES.forEach(p=>{
+    if(!seen[p.group]){
+      seen[p.group] = { title: p.group, single: p.single, keys: [] };
+      rows.push(seen[p.group]);
+    }
+    seen[p.group].keys.push(p.key);
+  });
+  return rows;
+})();
+
+// Адресати підготовки — користувачі з відповідною позначкою.
+const PREPARE = CFG.prepare || [];
+
+const P = Object.fromEntries(PROCESSES.map(p=>[p.key,p]));
+const WORKSHOP = (PROC_ROWS.find(g=>g.title.indexOf('майстерня') >= 0) || {keys:[]}).keys;
+
+/** Власна адреса в адресати не додається ніколи. */
+function notMe_(mail){ return String(mail||'').toLowerCase() !== String(ME.email||'').toLowerCase(); }
+
+// Підказки матеріалів приходять із бази разом з рештою довідників.
+const MATERIALS = (CFG.materials || []).map(m=>m.name);
+
+let files = [];
+const MAX_TOTAL = 20 * 1024 * 1024;
+const MAX_FILES = 10;
+
+let mats = [{id:1, name:'', ptype:'', procs:[], note:'', prep:false, luv:'30', open:true}];
+let nextId = 2;
+
+const $ = s => document.querySelector(s);
+
+/* ---------- storage ---------- */
+function remember(k,v){ try{ localStorage.setItem('ord:'+k, v); }catch(e){} }
+function recall(k){ try{ return localStorage.getItem('ord:'+k) || ''; }catch(e){ return ''; } }
+
+/* ---------- materials UI ---------- */
+function renderMats(){
+  const box = $('#mats');
+  box.innerHTML = '';
+  mats.forEach((m,i)=>{
+    const el = document.createElement('div');
+    el.className = 'mcard';
+
+    /* ---------- згорнута шапка ---------- */
+    const head = document.createElement('div');
+    head.className = 'mhead';
+
+    const n = document.createElement('span');
+    n.className = 'mnum'; n.textContent = String(i+1);
+
+    const name = document.createElement('span');
+    const nm = m.name.trim();
+    name.className = 'mname' + (nm ? '' : ' empty');
+    name.textContent = nm || 'новий матеріал';
+
+    const procBox = document.createElement('span');
+    procBox.className = 'mproc';
+    if((m.ptype||'').trim()){
+      const t = document.createElement('span');
+      t.className = 'mini t'; t.textContent = m.ptype.trim();
+      procBox.append(t);
+    }
+    m.procs.forEach(k=>{
+      if(!P[k]) return;
+      const t = document.createElement('span');
+      t.className = 'mini'; t.textContent = procText(k, m);
+      procBox.append(t);
+    });
+    if(m.prep){
+      const t = document.createElement('span');
+      t.className = 'mini w'; t.textContent = 'треба підготувати';
+      procBox.append(t);
+    }
+
+    const caret = document.createElement('span');
+    caret.className = 'caret';
+    caret.textContent = m.open ? 'згорнути ▾' : '▸';
+
+    head.append(n, name, procBox, caret);
+    head.addEventListener('click', e=>{
+      if(e.target.closest('button')) return;
+      m.open = !m.open;
+      open.classList.toggle('closed', !m.open);
+      caret.textContent = m.open ? 'згорнути ▾' : '▸';
+    });
+    el.append(head);
+
+    /* ---------- розгорнута середина ---------- */
+    const open = document.createElement('div');
+    open.className = 'mopen' + (m.open ? '' : ' closed');
+
+    const two = document.createElement('div');
+    two.className = 'mtwo';
+    const inp = document.createElement('input');
+    inp.type='text'; inp.value=m.name; inp.placeholder='акрил прозорий 3';
+    inp.setAttribute('list','matlist');
+    inp.setAttribute('autocomplete','off');
+    inp.setAttribute('aria-label','Назва матеріалу '+(i+1));
+    inp.addEventListener('input', e=>{
+      m.name = e.target.value;
+      refreshHead(el, m, i);
+      updateLocks(el, m);
+      update();
+    });
+
+    const pt = document.createElement('input');
+    pt.type='text'; pt.value = m.ptype || ''; pt.placeholder='тип друку';
+    pt.setAttribute('aria-label','Тип друку для матеріалу '+(i+1));
+    pt.setAttribute('autocomplete','off');
+    pt.addEventListener('input', e=>{ m.ptype = e.target.value; refreshHead(el, m, i); update(); });
+    two.append(inp, pt);
+    open.append(two);
+
+    /* групи процесів — підпис ліворуч, кнопки праворуч.
+       Постобробка лишається вимкненою, доки не вписано матеріал
+       або не обрано друк чи порізку. */
+    PROC_ROWS.forEach(group=>{
+      const line = document.createElement('div');
+      line.className = 'gline' + (group.single ? '' : ' grp');
+      const cap = document.createElement('span');
+      cap.className = 'gname'; cap.textContent = group.title;
+
+      const wrap = document.createElement('div');
+      const chips = document.createElement('div');
+      chips.className = 'chips';
+      const taken = group.single ? group.keys.find(k=>m.procs.includes(k)) : null;
+
+      group.keys.forEach(key=>{
+        const p = P[key];
+        const b = document.createElement('button');
+        b.type='button'; b.className='chip';
+        const on = m.procs.includes(key);
+        if(taken && !on) b.disabled = true;
+        b.setAttribute('aria-pressed', on ? 'true':'false');
+        if(on){
+          const o = document.createElement('span');
+          o.className='ord'; o.textContent = m.procs.indexOf(key)+1;
+          b.append(o);
+        }
+        const hint = p.note || p.chipNote;
+        b.append(document.createTextNode(hint ? p.label+' ('+hint+')' : p.label));
+        b.addEventListener('click', ()=>{
+          const k = m.procs.indexOf(key);
+          if(k>=0) m.procs.splice(k,1);
+          else {
+            m.procs.push(key);
+            if(key === 'luv' && !m.luv) m.luv = '30';
+          }
+          renderMats(); update();
+        });
+        chips.append(b);
+      });
+      wrap.append(chips);
+      if(!group.single){
+        const h = document.createElement('p');
+        h.className = 'ghint';
+        h.append(document.createElement('span'));
+        wrap.append(h);
+      }
+      line.append(cap, wrap);
+      open.append(line);
+    });
+
+    /* крок люверсів */
+    if(m.procs.includes('luv')){
+      const line = document.createElement('div');
+      line.className = 'gline';
+      const cap = document.createElement('span');
+      cap.className = 'gname'; cap.textContent = 'Люверси';
+      const row = document.createElement('div');
+      row.className = 'luvrow';
+      const f = document.createElement('input');
+      f.type='text'; f.inputMode='numeric'; f.value = m.luv || '30';
+      f.setAttribute('aria-label','Крок люверсів у сантиметрах');
+      f.addEventListener('input', e=>{
+        const clean = e.target.value.replace(/[^0-9]/g,'');
+        if(clean !== e.target.value){
+          const pos = e.target.selectionStart - 1;
+          e.target.value = clean;
+          e.target.setSelectionRange(pos, pos);
+        }
+        m.luv = clean;
+        refreshHead(el, m, i); update();
+      });
+      f.addEventListener('blur', ()=>{
+        if(!m.luv){ m.luv = '30'; f.value = '30'; refreshHead(el, m, i); update(); }
+      });
+      const sm = document.createElement('span');
+      sm.textContent = 'см через';
+      row.append(document.createTextNode('через'), f, document.createTextNode('см'));
+      line.append(cap, row);
+      open.append(line);
+    }
+
+    /* уточнення + позначка підготовки */
+    const nline = document.createElement('div');
+    nline.className = 'gline';
+    const ncap = document.createElement('span');
+    ncap.className = 'gname'; ncap.textContent = 'Уточнення';
+    const nrow = document.createElement('div');
+    nrow.style.display = 'flex'; nrow.style.gap = '7px';
+
+    const note = document.createElement('input');
+    note.type='text'; note.value = m.note || '';
+    note.placeholder='свій процес або уточнення — допишеться в кінець рядка';
+    note.setAttribute('aria-label','Уточнення до матеріалу '+(i+1));
+    note.setAttribute('autocomplete','off');
+    note.addEventListener('input', e=>{
+      m.note = e.target.value;
+      refreshHead(el, m, i); update();
+    });
+
+    const prep = document.createElement('button');
+    prep.type='button'; prep.className='prep';
+    prep.setAttribute('aria-pressed', m.prep ? 'true' : 'false');
+    prep.textContent = 'треба підготувати';
+    prep.addEventListener('click', ()=>{ m.prep = !m.prep; renderMats(); update(); });
+
+    nrow.append(note, prep);
+    nline.append(ncap, nrow);
+    open.append(nline);
+
+    /* дії над матеріалом */
+    const tools = document.createElement('div');
+    tools.className='mat-tools';
+    if(m.procs.length){
+      const clr = document.createElement('button');
+      clr.type='button'; clr.className='linkbtn'; clr.textContent='Очистити процеси';
+      clr.addEventListener('click', ()=>{ m.procs=[]; renderMats(); update(); });
+      tools.append(clr);
+    }
+    if(mats.length>1){
+      const del = document.createElement('button');
+      del.type='button'; del.className='linkbtn danger'; del.textContent='Видалити матеріал';
+      del.addEventListener('click', ()=>{
+        mats = mats.filter(x=>x.id!==m.id); renderMats(); update();
+      });
+      tools.append(del);
+    }
+    if(tools.children.length) open.append(tools);
+
+    el.append(open);
+    updateLocks(el, m);
+    box.append(el);
+  });
+}
+
+/**
+ * Постобробка відкривається, щойно вписано матеріал або обрано друк чи порізку.
+ * Рахується без перемальовування картки, щоб не губився фокус під час набору.
+ */
+function updateLocks(el, m){
+  const hasBase = PROC_ROWS.filter(g=>g.single)
+    .some(g=>g.keys.some(k=>m.procs.includes(k)));
+  const hasName = !!m.name.trim();
+  // Досить чогось одного: або вписаний матеріал, або обраний друк чи порізка.
+  const locked = !(hasBase || hasName);
+  const msg = 'впишіть матеріал або оберіть друк чи порізку';
+
+  Array.from(el.querySelectorAll('.gline.grp')).forEach(line=>{
+    line.classList.toggle('off', locked);
+    const hint = line.querySelector('.ghint');
+    if(hint){
+      hint.hidden = !locked;
+      const sp = hint.querySelector('span');
+      if(sp) sp.textContent = msg;
+    }
+    Array.from(line.querySelectorAll('.chip')).forEach(b=>{
+      const on = b.getAttribute('aria-pressed') === 'true';
+      b.disabled = locked && !on;
+    });
+  });
+}
+
+/** Оновлює згорнуту шапку без перемальовування всієї картки. */
+function refreshHead(el, m, i){
+  const name = el.querySelector('.mname');
+  if(name){
+    const nm = m.name.trim();
+    name.className = 'mname' + (nm ? '' : ' empty');
+    name.textContent = nm || 'новий матеріал';
+  }
+  const box = el.querySelector('.mproc');
+  if(!box) return;
+  box.innerHTML = '';
+  if((m.ptype||'').trim()){
+    const t = document.createElement('span');
+    t.className = 'mini t'; t.textContent = m.ptype.trim();
+    box.append(t);
+  }
+  m.procs.forEach(k=>{
+    if(!P[k]) return;
+    const t = document.createElement('span');
+    t.className = 'mini'; t.textContent = procText(k, m);
+    box.append(t);
+  });
+  if(m.prep){
+    const t = document.createElement('span');
+    t.className = 'mini w'; t.textContent = 'треба підготувати';
+    box.append(t);
+  }
+}
+
+function procText(k, m){
+  const p = P[k];
+  if(k === 'luv') return 'люверси через ' + ((m && m.luv) || '30') + 'см';
+  return p.note ? p.label + ' (' + p.note + ')' : p.label;
+}
+
+// жирні позначки в кінці рядка матеріалу
+function matTail(m){
+  const t = [];
+  if(m.procs.some(k=>WORKSHOP.includes(k))) t.push({t:'Постобробка', sep:' - '});
+  if(m.prep) t.push({t:'треба підготувати', sep:' - '});
+  return t;
+}
+
+function matLine(m){
+  let head = m.name.trim();
+  const pt = (m.ptype || '').trim();
+  if(head && pt) head += ' "' + pt + '"';
+  else if(pt) head = '"' + pt + '"';
+  const parts = [head]
+    .concat(m.procs.map(k=>procText(k, m)))
+    .concat([(m.note || '').trim()]);
+  return parts.filter(Boolean).join(' + ');
+}
+
+/* ---------- files ---------- */
+function humanSize(b){
+  if(b < 1024) return b+' Б';
+  if(b < 1024*1024) return Math.round(b/1024)+' КБ';
+  return (b/1024/1024).toFixed(1)+' МБ';
+}
+function totalSize(){ return files.reduce((a,f)=>a+f.size,0); }
+
+function addFiles(list){
+  const incoming = Array.from(list);
+  const free = MAX_FILES - files.length;
+  if(free <= 0){ toast('Більше ' + MAX_FILES + ' файлів не можна'); return; }
+  if(incoming.length > free) toast('Додано перші ' + free + ' — більше ' + MAX_FILES + ' не можна');
+
+  incoming.slice(0, free).forEach(f=>{
+    const r = new FileReader();
+    r.onload = ()=>{
+      files.push({
+        name:f.name, type:f.type || 'application/octet-stream', size:f.size,
+        data:String(r.result).split(',')[1],
+        url:f.type && f.type.indexOf('image/')===0 ? String(r.result) : null
+      });
+      renderFiles(); update();
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function renderFiles(){
+  const hint = $('#dropHint');
+  if(hint){
+    hint.textContent = files.length
+      ? files.length + ' з ' + MAX_FILES + ' файлів · ' + humanSize(totalSize()) + ' із 20 МБ'
+      : 'Не більше ' + MAX_FILES + ' файлів, 20 МБ разом. Прикріпляться до листа — не забудьте продублювати їх у корені папки замовлення.';
+  }
+  const ul = $('#fileList');
+  ul.innerHTML = '';
+  files.forEach((f,i)=>{
+    const li = document.createElement('li');
+    if(f.url){
+      const im = document.createElement('img'); im.src = f.url; im.alt = '';
+      li.append(im);
+    } else {
+      const d = document.createElement('span'); d.className='fdoc';
+      d.textContent = (f.name.split('.').pop() || '?').slice(0,4).toUpperCase();
+      li.append(d);
+    }
+    const n = document.createElement('span'); n.className='fname'; n.textContent = f.name;
+    const s = document.createElement('span'); s.className='fsize'; s.textContent = humanSize(f.size);
+    const x = document.createElement('button');
+    x.type='button'; x.className='linkbtn danger'; x.textContent='прибрати';
+    x.addEventListener('click',()=>{ files.splice(i,1); renderFiles(); update(); });
+    li.append(n,s,x);
+    ul.append(li);
+  });
+}
+
+/* ---------- assembling ---------- */
+/** Ключі відділів у порядку виконання робіт. */
+function deptKeys(){
+  const seen = [];
+  mats.forEach(m=>{
+    if(!m.name.trim() && !(m.ptype||'').trim() && !m.procs.length && !(m.note||'').trim() && !m.prep) return;
+    m.procs.forEach(k=>{
+      (P[k] ? P[k].depts : []).forEach(d=>{ if(!seen.includes(d)) seen.push(d); });
+    });
+  });
+  return seen;
+}
+
+function prepAll(){ return $('#prepAll').checked; }
+
+/**
+ * «Кому». У звичайному режимі — відділи за процесами.
+ * При «підготувати усе замовлення» цехів немає: лишається сама підготовка.
+ */
+function collectTo(){
+  if(prepAll()){
+    return PREPARE.filter(x=>notMe_(x.mail))
+      .map(x=>({ mail: x.mail, who: 'підготовка макетів' }));
+  }
+  return deptKeys().filter(k=>DEPTS[k] && notMe_(DEPTS[k].mail))
+    .map(k=>({ mail: DEPTS[k].mail, who: DEPTS[k].who }));
+}
+
+/**
+ * «Копія». При «підготувати усе замовлення» — тільки пошти керівників
+ * тих напрямків, які задіяні: прямі адреси цехів призначені для виконання,
+ * а виконувати поки нічого.
+ */
+function collectCc(){
+  const list = [];
+  const add = (mail, who) => {
+    if(!mail || !notMe_(mail)) return;
+    if(list.some(x=>x.mail.toLowerCase() === String(mail).toLowerCase())) return;
+    list.push({ mail: mail, who: who || '' });
+  };
+
+  if(prepAll()){
+    deptKeys().forEach(k=>{ if(DEPTS[k] && DEPTS[k].head) add(DEPTS[k].mail, DEPTS[k].who); });
+  } else if(mats.some(m=>m.prep)){
+    PREPARE.forEach(x=>add(x.mail, 'підготовка макетів'));
+  }
+
+  if($('#ccMontazh').checked && DEPTS.montazh) add(DEPTS.montazh.mail, DEPTS.montazh.who);
+  if($('#ccManager').checked) add(managerMail(), 'менеджер');
+
+  $('#ccExtra').value.split(',').map(s=>s.trim()).filter(Boolean)
+    .forEach(mail=>add(mail, ''));
+  return list;
+}
+
+let rFrom = null, rTo = null;
+let readyDefault = true;
+let calView = new Date();
+const MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
+                'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+
+// наступний робочий день: з п'ятниці, суботи й неділі — на понеділок
+function nextWorkday(){
+  const d = new Date();
+  d.setHours(12,0,0,0);
+  do { d.setDate(d.getDate()+1); } while(d.getDay() === 0 || d.getDay() === 6);
+  return iso(d);
+}
+
+function iso(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function fmtDate(v){
+  if(!v) return '';
+  const p = v.split('-');
+  return p[2]+'.'+p[1];
+}
+
+function readyLine(){
+  if(!rFrom) return '';
+  let s = fmtDate(rFrom);
+  if(rTo && rTo !== rFrom) s += '-' + fmtDate(rTo);
+  const t = $('#readytime').value;
+  if(t) s += ' до '+t;
+  return s;
+}
+
+function renderCal(){
+  const y = calView.getFullYear(), m = calView.getMonth();
+  $('#calTitle').textContent = MONTHS[m]+' '+y;
+
+  const grid = $('#calGrid');
+  grid.innerHTML = '';
+  const offset = (new Date(y, m, 1).getDay()+6) % 7;
+
+  for(let i=0;i<42;i++){
+    const d = new Date(y, m, 1-offset+i), v = iso(d);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cal-day'
+      + (d.getMonth() !== m ? ' out' : '')
+      + (v === rFrom || v === rTo ? ' edge' : '')
+      + (rTo && v > rFrom && v < rTo ? ' in' : '');
+    b.textContent = d.getDate();
+    b.onclick = ()=>pickDay(v);
+    grid.append(b);
+  }
+
+  $('#calHint').textContent = !rFrom
+    ? 'Оберіть день, або два — для періоду'
+    : !rTo
+      ? fmtDate(rFrom)+' — оберіть другий день, або клікніть по цьому ще раз'
+      : fmtDate(rFrom)+'-'+fmtDate(rTo)+' — натисніть «Готово»';
+
+  $('#readyNote').hidden = !readyDefault || !rFrom;
+
+  const line = rFrom ? fmtDate(rFrom) + (rTo ? '-'+fmtDate(rTo) : '') : '';
+  const txt = $('#readyText');
+  txt.textContent = line || 'Обрати дату або період';
+  txt.className = line ? '' : 'ph';
+}
+
+function pickDay(v){
+  readyDefault = false;
+  let close = false;
+  if(rFrom && !rTo && v === rFrom){ close = true; }              // той самий день — підтвердження
+  else if(!rFrom || rTo){ rFrom = v; rTo = null; }               // старт нового вибору
+  else if(v < rFrom){ rTo = rFrom; rFrom = v; close = true; }    // другий день раніше першого
+  else { rTo = v; close = true; }                                // звичайний період
+  renderCal(); update();
+  if(close) closeCal();
+}
+
+function openCal(){
+  if(rFrom){ const p = rFrom.split('-'); calView = new Date(+p[0], +p[1]-1, 1); }
+  $('#cal').hidden = false;
+  $('#readyBtn').setAttribute('aria-expanded','true');
+  renderCal();
+}
+function closeCal(){
+  $('#cal').hidden = true;
+  $('#readyBtn').setAttribute('aria-expanded','false');
+}
+
+const GIVEOUTS = [
+  {key:'post',  label:'Постобробка', with:true},
+  {key:'vyr',   label:'Виробництво (Рівненська 48)'},
+  {key:'mayst', label:'Майстерня (Рівненська 48)'},
+  {key:'suv',   label:'Сувенірка (Лідавська 1а)'},
+  {key:'dream', label:'Дрім Таун (Привокзальна 10а)'},
+  {key:'dost',  label:'Доставка по місту'},
+  {key:'as',    label:'Автостанція (відправка автобусом)'},
+  {key:'np',    label:'Нова Пошта'}
+];
+const G = Object.fromEntries(GIVEOUTS.map(g=>[g.key,g]));
+
+let givPost = false;   // «Постобробка» — єдина, що поєднується з іншою
+let givDest = null;    // куди йде замовлення
+
+function renderGiveout(){
+  const box = $('#giveoutChips');
+  box.innerHTML = '';
+  GIVEOUTS.forEach(g=>{
+    const b = document.createElement('button');
+    b.type='button';
+    b.className = 'chip' + (g.with ? ' post' : '');
+    const on = g.with ? givPost : givDest === g.key;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if(!g.with && givDest && !on) b.disabled = true;
+    b.textContent = g.label;
+    b.addEventListener('click', ()=>{
+      if(g.with) givPost = !givPost;
+      else givDest = (givDest === g.key) ? null : g.key;
+      renderGiveout(); update();
+    });
+    box.append(b);
+  });
+}
+
+function giveoutBase(){
+  const parts = [];
+  if(givPost) parts.push(G.post.label);
+  if(givDest) parts.push(G[givDest].label);
+  return parts.join(', ');
+}
+function giveoutExtra(){
+  return $('#giveoutOther').value.trim();
+}
+function giveoutValue(){
+  const b = giveoutBase(), e = giveoutExtra();
+  if(b && e) return b + ', ' + e;
+  return b || e;
+}
+
+/** Пошта обраного менеджера, якщо вона є в базі. */
+function managerMail(){
+  const v = $('#manager').value;
+  const m = (CFG.managers || []).filter(x=>x.name === v)[0];
+  return m && m.mail ? m.mail : '';
+}
+
+/** Галочка «Копія менеджеру» має сенс лише коли є кому і це не ти сам. */
+function syncManagerCc(){
+  const mail = managerMail();
+  const show = !!mail && notMe_(mail);
+  $('#ccManagerWrap').hidden = !show;
+  if(!show) $('#ccManager').checked = false;
+}
+
+function managerValue(){
+  const v = $('#manager').value;
+  if(v === '__other') return $('#managerOther').value.trim();
+  return v;
+}
+
+function buildLines(){
+  const L = [];
+  const push = (t, bold) => L.push({t:t, b:!!bold});
+
+  const path = $('#path').value.trim();
+  if(path) push(path);
+  if(prepAll()) push('підготувати усе замовлення', true);
+
+  const ml = mats
+    .map(m=>({t:matLine(m), tail:matTail(m)}))
+    .filter(o=>o.t || o.tail.length);
+  if(ml.length){ push(''); ml.forEach(o=>L.push({t:o.t, b:false, tail:o.tail})); }
+
+  const extra = $('#extra').value.trim();
+  if(extra){ push(''); extra.split('\n').forEach(s=>push(s)); }
+
+  const svc = [];
+  const mgr = managerValue();
+  const rdy = readyLine();
+  const giv = giveoutValue();
+  if(mgr) svc.push({t:'Менеджер: '+mgr, b:false});
+  if(rdy) svc.push({t:'Готовність: '+rdy, b:false});
+  if($('#ccMontazh').checked) svc.push({t:'Наш монтаж', b:true});
+  if(giv){
+    const b = giveoutBase(), e = giveoutExtra();
+    svc.push({
+      t: 'Видача: ' + b + (b && e ? ', ' : ''),
+      b: false,
+      tail: e ? [{t:e, sep:''}] : []
+    });
+  }
+  if(svc.length){ push(''); svc.forEach(s=>L.push(s)); }
+
+  return L;
+}
+
+function tailOf(l){
+  return (l.tail || []).filter(x=>x.t);
+}
+
+function buildBody(){
+  return buildLines()
+    .map(l => l.t + tailOf(l).map(x=>(l.t ? x.sep : '') + x.t).join(''))
+    .join('\n');
+}
+
+function lineHtml(l){
+  const base = l.b ? '<b>'+escapeHtml(l.t)+'</b>' : escapeHtml(l.t);
+  return base + tailOf(l)
+    .map(x=>escapeHtml(l.t ? x.sep : '') + '<b>'+escapeHtml(x.t)+'</b>')
+    .join('');
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildHtmlBody(){
+  const inner = buildLines().map(lineHtml).join('<br>');
+  return '<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5">'+inner+'</div>';
+}
+
+/* ---------- validation ---------- */
+function validate(){
+  const out = [];
+  const path = $('#path').value.trim();
+  const filled = mats.filter(m=>m.name.trim() || (m.ptype||'').trim() || m.procs.length || (m.note||'').trim() || m.prep);
+
+  if(!$('#client').value.trim()) out.push(['err','Тема порожня — без імені замовника лист не знайдеться в пошті.']);
+  if(!path) out.push(['err','Немає шляху до папки замовлення.']);
+  else if(!/^([A-Za-z]:\\|\\\\)/.test(path))
+    out.push(['warn','Шлях не схожий на дійсний — очікується вигляд F:\\… або \\\\сервер\\…']);
+
+  if(!filled.length) out.push(['err','Не додано жодного матеріалу.']);
+  if(prepAll() && !PREPARE.length)
+    out.push(['err','У базі немає нікого з позначкою «готує макети».']);
+  filled.forEach((m,i)=>{
+    if(!m.name.trim()) out.push(['err','Матеріал '+(mats.indexOf(m)+1)+': немає назви.']);
+    else if(!m.procs.length) out.push(['err','«'+m.name.trim()+'»: не обрано жодного процесу.']);
+  });
+
+  if(!managerValue()) out.push(['err','Не вказано менеджера.']);
+  if(!rFrom) out.push(['err','Не вказано термін готовності.']);
+  if(!giveoutValue()) out.push(['err','Не вказано видачу.']);
+  else if(givPost && !givDest && !giveoutExtra())
+    out.push(['err','Після постобробки треба вказати, куди йде замовлення.']);
+
+  if(totalSize() > MAX_TOTAL)
+    out.push(['err','Вкладення важать '+humanSize(totalSize())+' — більше за ліміт 20 МБ. Лишіть посилання на папку.']);
+  else if(files.length > 3)
+    out.push(['warn','Візуалізацій більше трьох — на сервері для них потрібна окрема папка «візуалізація».']);
+
+  if(prepAll() && mats.some(m=>m.prep))
+    out.push(['warn','Усе замовлення й так іде на підготовку — позначки в матеріалах зайві.']);
+
+  mats.forEach(m=>{
+    if(m.procs.includes('uvplot') && !m.procs.includes('plot')){
+      out.push(['warn','«'+(m.name.trim() || 'матеріал')+'»: уф друк через плотерну, але плотерної порізки не обрано.']);
+    }
+  });
+
+  const hasMont = mats.some(m=>m.procs.includes('mont'));
+  if(hasMont && $('#ccMontazh').checked)
+    out.push(['warn','Монтаж є серед процесів — він має бути в «Кому», а не в копії.']);
+
+  return out;
+}
+
+/* ---------- render ---------- */
+function update(){
+  const to = collectTo();
+  const toList = $('#toList');
+  toList.innerHTML = '';
+  if(!to.length){
+    const li = document.createElement('li');
+    li.className='none';
+    li.textContent = prepAll()
+      ? 'У базі немає нікого з позначкою «готує макети».'
+      : 'Оберіть процеси — адреси підставляться самі.';
+    toList.append(li);
+  } else {
+    to.forEach(x=>{
+      const li = document.createElement('li');
+      const a = document.createElement('span'); a.textContent = x.mail;
+      const w = document.createElement('span'); w.className='who'; w.textContent = x.who;
+      li.append(a,w); toList.append(li);
+    });
+  }
+
+  const cc = collectCc();
+  $('#ccPanel').hidden = cc.length === 0;
+  const ccList = $('#ccList');
+  ccList.innerHTML='';
+  cc.forEach(c=>{
+    const li = document.createElement('li');
+    const a = document.createElement('span'); a.textContent = c.mail;
+    li.append(a);
+    if(c.who){ const w=document.createElement('span'); w.className='who'; w.textContent=c.who; li.append(w); }
+    ccList.append(li);
+  });
+
+  $('#giveoutLabel').textContent = $('#ccMontazh').checked
+    ? 'Адреса монтажу'
+    : 'Уточнення по доставці — не обов\'язково';
+
+  const subj = $('#client').value.trim();
+  const lines = buildLines();
+  const head = subj ? '<b>Тема:</b> '+escapeHtml(subj)+'<br><br>' : '';
+  const bodyHtml = lines.length ? lines.map(lineHtml).join('<br>') : '…';
+  $('#letter').innerHTML = head + bodyHtml;
+
+  const iss = validate();
+  const ul = $('#issues');
+  ul.innerHTML='';
+  if(!iss.length){
+    const li=document.createElement('li'); li.className='ok';
+    li.textContent='Усе на місці — можна відправляти.'; ul.append(li);
+  } else {
+    iss.forEach(([lvl,txt])=>{
+      const li=document.createElement('li'); li.className=lvl; li.textContent=txt; ul.append(li);
+    });
+  }
+
+  remember('path', $('#path').value);
+  remember('manager', managerValue());
+}
+
+/* ---------- скидання форми після подачі ---------- */
+function resetForm(){
+  $('#client').value = '';
+  $('#path').value = '';
+  $('#extra').value = '';
+
+  mats = [{id:nextId++, name:'', ptype:'', procs:[], note:'', prep:false, luv:'30', open:true}];
+
+  rFrom = nextWorkday(); rTo = null; readyDefault = true;
+  $('#readytime').value = '';
+
+  givPost = false; givDest = null;
+  $('#giveoutOther').value = '';
+
+  $('#prepAll').checked = false;
+  $('#ccManager').checked = false;
+  $('#ccMontazh').checked = false;
+  $('#ccExtra').value = '';
+
+  files = [];
+  renderFiles();
+  renderMats();
+  renderGiveout();
+  renderCal();
+  update();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ---------- actions ---------- */
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1800);
+}
+async function copy(text,label){
+  if(!text){ toast('Нічого копіювати'); return; }
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(label+' скопійовано');
+  }catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.append(ta); ta.select();
+    try{ document.execCommand('copy'); toast(label+' скопійовано'); }
+    catch(_){ toast('Скопіюйте вручну'); }
+    ta.remove();
+  }
+}
+
+$('#clearAll').addEventListener('click',()=>{
+  askConfirm(()=>{ resetForm(); toast('Форму очищено'); }, {
+    title: 'Очистити форму?',
+    text: 'Усі введені дані буде стерто: замовник, шлях, матеріали, термін, видача та завантажені візуалізації. Скасувати це не вийде.',
+    yes: 'Так, очистити'
+  });
+});
+
+$('#copyBody').addEventListener('click',()=>copy(buildBody(),'Текст листа'));
+$('#copyTo').addEventListener('click',()=>copy(collectTo().map(x=>x.mail).join(', '),'Адреси'));
+$('#copyAll').addEventListener('click',()=>{
+  const to = collectTo().map(x=>x.mail).join(', ');
+  const cc = collectCc().map(c=>c.mail).join(', ');
+  const t = ['Кому: '+to];
+  if(cc) t.push('Копія: '+cc);
+  t.push('Тема: '+$('#client').value.trim(), '', buildBody());
+  copy(t.join('\n'),'Лист');
+});
+let confirmAction = null;
+
+function orderSummary(){
+  const to = collectTo().map(x=>x.mail);
+  const cc = collectCc().map(c=>c.mail);
+  const lines = [
+    'Тема: ' + ($('#client').value.trim() || '—'),
+    'Кому: ' + (to.length ? to.join(', ') : '—')
+  ];
+  if(cc.length) lines.push('Копія: ' + cc.join(', '));
+  if(files.length) lines.push('Вкладень: ' + files.length + ' (' + humanSize(totalSize()) + ')');
+  return lines.join('\n');
+}
+
+function askConfirm(fn, opts){
+  const o = opts || {};
+  $('#ovlTitle').textContent = o.title || 'Подати замовлення в роботу?';
+  $('#ovlSum').textContent = o.text || orderSummary();
+  $('#ovlYes').textContent = o.yes || 'Так, подати';
+  confirmAction = fn;
+  $('#ovl').hidden = false;
+  $('#ovlYes').focus();
+}
+function closeConfirm(){
+  $('#ovl').hidden = true;
+  confirmAction = null;
+}
+$('#ovlNo').addEventListener('click', closeConfirm);
+$('#ovl').addEventListener('click', e=>{ if(e.target === $('#ovl')) closeConfirm(); });
+$('#ovlYes').addEventListener('click', ()=>{
+  const fn = confirmAction;
+  closeConfirm();
+  if(fn) fn();
+});
+
+function payload(){
+  return {
+    to: collectTo().map(x=>x.mail).join(','),
+    cc: collectCc().map(c=>c.mail).join(','),
+    subject: $('#client').value.trim(),
+    body: buildBody(),
+    html: buildHtmlBody(),
+    files: files.map(f=>({name:f.name, type:f.type, data:f.data})),
+    // для журналу
+    mode: prepAll() ? 'підготовка' : 'виробництво',
+    client: $('#client').value.trim(),
+    path: $('#path').value.trim(),
+    manager: managerValue(),
+    deadline: readyLine(),
+    giveout: giveoutValue(),
+    attachments: files.length,
+    materials: mats
+      .filter(m=>m.name.trim() || (m.ptype||'').trim() || m.procs.length || (m.note||'').trim() || m.prep)
+      .map(m=>({ name: m.name, ptype: m.ptype, procs: m.procs,
+                 note: m.note, prep: m.prep, luv: m.luv }))
+  };
+}
+
+function runOnServer(method, btn, idleText, okText, clearAfter){
+  const action = method === 'sendOrder' ? 'order.send' : 'order.draft';
+  btn.disabled = true; btn.textContent = 'Працюю…';
+  const t0 = performance.now();
+  const finish = msg => { btn.disabled = false; btn.textContent = idleText; toast(msg); };
+
+  API.call(action, payload())
+    .then(()=>{
+      perfMark(action, performance.now() - t0, files.length + ' файлів');
+      if(action === 'order.draft') $('#draftLink').hidden = false;
+      if(action === 'order.send') journalCache = null;   // у журналі з'явився новий рядок
+      finish(okText);
+      if(clearAfter) resetForm();
+    })
+    .catch(err=>{
+      perfMark(action, performance.now() - t0, 'помилка');
+      finish('Помилка: '+(err && err.message ? err.message : err));
+    });
+}
+
+function readyToGo(){
+  const errs = validate().filter(i=>i[0]==='err');
+  if(errs.length){ toast('Спершу виправте помилки в перевірці'); return false; }
+  return true;
+}
+
+$('#sendOrder').addEventListener('click',()=>{
+  if(!readyToGo()) return;
+  askConfirm(()=>runOnServer('sendOrder', $('#sendOrder'), 'Подати замовлення', 'Замовлення подано', true));
+});
+
+$('#makeDraft').addEventListener('click',()=>{
+  if(!readyToGo()) return;
+  runOnServer('createOrderDraft', $('#makeDraft'), 'Створити чернетку', 'Чернетку створено', false);
+});
+
+/* ---------- wiring ---------- */
+['client','path','extra','readytime','giveoutOther','managerOther','ccExtra']
+  .forEach(id=>$('#'+id).addEventListener('input',update));
+['prepAll','ccMontazh','ccManager']
+  .forEach(id=>$('#'+id).addEventListener('change',update));
+
+// Наш монтаж — замовлення лишається в майстерні, а уточнення стає адресою монтажу.
+$('#ccMontazh').addEventListener('change', e=>{
+  if(e.target.checked && G.mayst) givDest = 'mayst';
+  renderGiveout();
+  update();
+});
+
+/* theme */
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  $('#themeBtn').textContent = t === 'dark' ? 'Світла тема' : 'Темна тема';
+  remember('theme', t);
+}
+$('#linkBtn').addEventListener('click',()=>{
+  // Звичайна адреса сторінки. Жодних номерів акаунта в ній не буває:
+  // сторінка лежить на нашому домені, а не в Google.
+  copy(location.origin + location.pathname, 'Посилання на застосунок');
+});
+
+$('#mailBtn').addEventListener('click',()=>{
+  const linked = BOOT.mail && BOOT.mail.linked;
+  askConfirm(()=>API.login(), {
+    title: linked ? 'Прив’язати пошту наново?' : 'Прив’язати пошту',
+    text: linked
+      ? 'Пошта вже прив’язана' + (BOOT.mail.linkedAt ? ' ' + BOOT.mail.linkedAt.slice(0,10) : '') +
+        '.\n\nПрив’язати наново варто, якщо листи перестали надсилатися.'
+      : 'Зараз застосунок не може надсилати листи з вашої скриньки.\n\n' +
+        'Google попросить дозвіл на надсилання. Читати вашу пошту застосунок не вміє.',
+    yes: 'Перейти до Google'
+  });
+});
+
+$('#passBtn').addEventListener('click',()=>{
+  const old = window.prompt('Поточний пароль');
+  if(old === null) return;
+  const fresh = window.prompt('Новий пароль — від 8 знаків');
+  if(fresh === null) return;
+  if(fresh !== window.prompt('Повторіть новий пароль')){
+    toast('Паролі не збігаються'); return;
+  }
+  srv('auth.setpass', { old: old, fresh: fresh })
+    .then(()=>toast('Пароль змінено'))
+    .catch(e=>toast('Помилка: ' + e.message));
+});
+
+$('#logoutBtn').addEventListener('click',()=>{
+  askConfirm(()=>API.logout(), {
+    title: 'Вийти із застосунку?',
+    text: 'Зараз ви тут як ' + (ME.name || ME.email || '—') + '.\n\n'
+        + 'З акаунта Google це не виводить — лише із застосунку. '
+        + 'Прив’язка пошти збережеться, наступного разу входити буде швидше.',
+    yes: 'Вийти'
+  });
+});
+
+$('#themeBtn').addEventListener('click',()=>{
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+/* files */
+$('#pickFiles').addEventListener('click',()=>$('#fileInput').click());
+$('#fileInput').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
+const drop = $('#drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault(); drop.classList.add('over');
+}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop',e=>{
+  if(e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+});
+
+$('#readyBtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  if($('#cal').hidden) openCal(); else closeCal();
+});
+$('#calPrev').addEventListener('click',()=>{
+  calView = new Date(calView.getFullYear(), calView.getMonth()-1, 1); renderCal();
+});
+$('#calNext').addEventListener('click',()=>{
+  calView = new Date(calView.getFullYear(), calView.getMonth()+1, 1); renderCal();
+});
+$('#calClear').addEventListener('click',()=>{ rFrom=null; rTo=null; readyDefault=false; renderCal(); update(); });
+$('#calDone').addEventListener('click',closeCal);
+// Клік усередині календаря не має вважатись кліком повз нього:
+// після перемальовування сітки натиснута кнопка вже поза документом.
+$('#cal').addEventListener('click', e=>e.stopPropagation());
+document.addEventListener('click',e=>{
+  if(!$('#cal').hidden && !e.target.closest('.datewrap')) closeCal();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if(!$('#ovl').hidden){ closeConfirm(); return; }
+  if(!$('#cal').hidden){ closeCal(); $('#readyBtn').focus(); }
+});
+$('#manager').addEventListener('change',e=>{
+  $('#manager-other-wrap').hidden = e.target.value !== '__other';
+  syncManagerCc();
+  update();
+});
+$('#addmat').addEventListener('click',()=>{
+  mats.push({id:nextId++, name:'', ptype:'', procs:[], note:'', prep:false, luv:'30', open:true});
+  renderMats(); update();
+  const inputs = document.querySelectorAll('.mat-head input');
+  if(inputs.length) inputs[inputs.length-1].focus();
+});
+
+/* ============================================================
+ *  Виклики до бази
+ * ============================================================ */
+
+function srv(action, payload){
+  const t0 = performance.now();
+  return API.call(action, payload)
+    .then(r=>{ perfMark(action, performance.now() - t0, ''); return r; })
+    .catch(e=>{ perfMark(action, performance.now() - t0, 'помилка'); throw e; });
+}
+
+/* ============================================================
+ *  Вкладки
+ * ============================================================ */
+
+const VIEWS = ['form','journal','clients','admin'];
+let currentView = 'form';
+
+function showView(name){
+  currentView = name;
+  VIEWS.forEach(v=>{
+    const el = $('#view-'+v);
+    if(el) el.hidden = v !== name;
+  });
+  Array.from(document.querySelectorAll('.tab')).forEach(t=>{
+    t.setAttribute('aria-selected', t.dataset.view === name ? 'true' : 'false');
+  });
+  // Завантажуємо лише те, чого ще немає: повернення на вкладку має бути миттєвим.
+  if(name === 'journal') loadJournal(false);
+  if(name === 'clients') loadClients(false);
+  if(name === 'admin') loadAdmin(false);
+}
+
+/* ============================================================
+ *  Журнал
+ * ============================================================ */
+
+let journalCache = null;
+let journalKey = '';
+
+function fmtWhen(v){
+  const d = new Date(v);
+  if(isNaN(d)) return String(v || '');
+  const p = n => String(n).padStart(2,'0');
+  return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+function loadJournal(force){
+  const scope = $('#jAll').checked ? 'all' : 'mine';
+  const query = $('#jQuery').value.trim();
+  const key = scope + '|' + query;
+
+  if(!force && journalCache && key === journalKey){ renderJournal(); return; }
+
+  const box = $('#jList');
+  if(!journalCache || key !== journalKey) box.textContent = 'Завантаження…';
+  srv('orders.list', { scope: scope, query: query, limit: 200 })
+    .then(res=>{
+      journalCache = res.orders || [];
+      journalKey = key;
+      renderJournal();
+    })
+    .catch(e=>{ box.textContent = 'Помилка: ' + e.message; });
+}
+
+function renderJournal(){
+  const box = $('#jList');
+  box.innerHTML = '';
+  if(!journalCache.length){
+    box.textContent = 'Поки порожньо.';
+    return;
+  }
+  journalCache.forEach(o=>{
+    const row = document.createElement('div');
+    row.className = 'jrow';
+
+    const d = document.createElement('span');
+    d.className = 'jdate'; d.textContent = fmtWhen(o.sent_at);
+
+    const c = document.createElement('span');
+    c.className = 'jclient'; c.textContent = o.client || '(без замовника)';
+
+    const m = document.createElement('span');
+    m.className = 'jmeta';
+    m.textContent = [o.sender_name, o.deadline, o.giveout].filter(Boolean).join(' · ');
+
+    row.append(d, c);
+    if(o.mode === 'підготовка'){
+      const t = document.createElement('span');
+      t.className = 'jtag'; t.textContent = 'підготовка';
+      row.append(t);
+    }
+    row.append(m);
+    row.addEventListener('click', ()=>openOrder(o.id));
+    box.append(row);
+  });
+}
+
+function openOrder(id){
+  srv('orders.get', { id: id }).then(o=>{
+    const info = [
+      'Кому: ' + (o.to || '—'),
+      o.cc ? 'Копія: ' + o.cc : '',
+      '',
+      'Тема: ' + (o.subject || '—'),
+      '',
+      o.body || ''
+    ].filter(x=>x !== null).join('\n');
+
+    askConfirm(()=>loadOrderIntoForm(o), {
+      title: (o.client || 'Замовлення') + ' · ' + fmtWhen(o.sent_at),
+      text: info,
+      yes: 'Повторити замовлення'
+    });
+  }).catch(e=>toast('Помилка: ' + e.message));
+}
+
+/** Підставляє у форму те, що машинно відновлюється. Видачу й термін — ні. */
+function loadOrderIntoForm(o){
+  $('#client').value = o.client || '';
+  $('#path').value = o.path || '';
+  $('#extra').value = '';
+  if(o.manager){
+    const sel = $('#manager');
+    const known = Array.from(sel.options).some(x=>x.value === o.manager);
+    if(known) sel.value = o.manager;
+  }
+  mats = (o.materials || []).map(m=>({
+    id: nextId++, name: m.name || '', ptype: m.ptype || '',
+    procs: (m.procs || []).filter(k=>P[k]),
+    note: m.note || '', prep: !!m.prep, luv: m.luv || '30', open: false
+  }));
+  if(!mats.length) mats = [{id:nextId++, name:'', ptype:'', procs:[], note:'', prep:false, luv:'30', open:true}];
+
+  const lost = (o.materials || []).reduce((n,m)=>
+    n + (m.procs || []).filter(k=>!P[k]).length, 0);
+
+  renderMats(); syncManagerCc(); update();
+  showView('form');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast(lost ? 'Підставлено. ' + lost + ' процес(ів) більше немає в довіднику' : 'Підставлено у форму');
+}
+
+/* ============================================================
+ *  Картки замовників
+ * ============================================================ */
+
+let clientsCache = null;
+
+function loadClients(force){
+  if(!force && clientsCache){ renderClients(); renderSetButtons(); return; }
+
+  const box = $('#cList');
+  if(!clientsCache) box.textContent = 'Завантаження…';
+  srv('clients.list').then(res=>{
+    clientsCache = res.clients || [];
+    renderClients();
+    renderSetButtons();
+  }).catch(e=>{ box.textContent = 'Помилка: ' + e.message; });
+}
+
+function clientByName(name){
+  const n = String(name || '').trim().toLowerCase();
+  if(!n || !clientsCache) return null;
+  return clientsCache.filter(c=>String(c.name).trim().toLowerCase() === n)[0] || null;
+}
+
+function renderClients(){
+  const box = $('#cList');
+  box.innerHTML = '';
+  if(!clientsCache) return;
+
+  const groups = [
+    ['Мої', clientsCache.filter(c=>c.mine)],
+    ['Спільні для компанії', clientsCache.filter(c=>!c.mine && c.visibility === 'company')],
+    ['Якими поділились', clientsCache.filter(c=>!c.mine && c.visibility !== 'company')]
+  ];
+
+  let any = false;
+  groups.forEach(([title, list])=>{
+    if(!list.length) return;
+    any = true;
+    const g = document.createElement('div');
+    g.className = 'cgroup';
+    const h4 = document.createElement('h4'); h4.textContent = title;
+    g.append(h4);
+
+    list.forEach(c=>{
+      const row = document.createElement('div');
+      row.className = 'crow';
+
+      const n = document.createElement('span');
+      n.className = 'cname'; n.textContent = c.name;
+
+      const meta = document.createElement('span');
+      meta.className = 'cmeta';
+      const bits = [];
+      if(!c.mine) bits.push(c.source);
+      if(c.defaults && c.defaults.manager) bits.push(c.defaults.manager);
+      if(c.sets.length) bits.push(c.sets.length + ' набор.');
+      meta.textContent = bits.join(' · ');
+
+      const acts = document.createElement('div');
+      acts.className = 'cacts';
+      const use = document.createElement('button');
+      use.type='button'; use.className='linkbtn'; use.textContent='підставити';
+      use.addEventListener('click', ()=>{ applyClient(c); showView('form'); });
+      acts.append(use);
+
+      if(c.mine){
+        const sh = document.createElement('button');
+        sh.type='button'; sh.className='linkbtn'; sh.textContent='поділитися';
+        sh.addEventListener('click', ()=>shareClient(c));
+        const off = document.createElement('button');
+        off.type='button'; off.className='linkbtn danger'; off.textContent='прибрати';
+        off.addEventListener('click', ()=>{
+          askConfirm(()=>{
+            srv('clients.setActive', { id: c.id, active: false })
+              .then(()=>{ toast('Прибрано'); loadClients(true); })
+              .catch(e=>toast('Помилка: ' + e.message));
+          }, { title: 'Прибрати картку «' + c.name + '»?',
+               text: 'Вона зникне зі списку разом зі своїми наборами. Замовлення в журналі не постраждають.',
+               yes: 'Прибрати' });
+        });
+        acts.append(sh, off);
+      }
+
+      row.append(n, meta, acts);
+
+      if(c.sets.length){
+        const sets = document.createElement('div');
+        sets.className = 'sets';
+        c.sets.forEach(st=>{
+          const b = document.createElement('button');
+          b.type='button'; b.className='setbtn'; b.textContent = st.name;
+          b.addEventListener('click', ()=>{ addSet(st); showView('form'); });
+          sets.append(b);
+        });
+        row.append(sets);
+      }
+      g.append(row);
+    });
+    box.append(g);
+  });
+
+  if(!any) box.textContent = 'Карток поки немає. Заповніть форму й натисніть «Зберегти як картку замовника».';
+}
+
+/** Службові поля з картки. Нічого не нав'язує: усе можна перебити руками. */
+function applyClient(c){
+  const d = c.defaults || {};
+  if(d.manager){
+    const sel = $('#manager');
+    if(Array.from(sel.options).some(x=>x.value === d.manager)) sel.value = d.manager;
+  }
+  if(d.pathPrefix && !$('#path').value.trim()) $('#path').value = d.pathPrefix;
+  if(d.extra && !$('#extra').value.trim()) $('#extra').value = d.extra;
+  if(d.giveDest !== undefined) givDest = d.giveDest;
+  if(d.givePost !== undefined) givPost = !!d.givePost;
+  if(d.giveExtra) $('#giveoutOther').value = d.giveExtra;
+  $('#client').value = c.name;
+
+  renderGiveout(); syncManagerCc(); update();
+  renderSetButtons();
+  toast('Підставлено з картки «' + c.name + '»');
+}
+
+/** Набір додається ДО того, що вже є у формі, а не замість. */
+function addSet(st){
+  const lost = (st.materials || []).filter(m=>(m.procs||[]).some(k=>!P[k])).length;
+  (st.materials || []).forEach(m=>{
+    mats.push({
+      id: nextId++, name: m.name || '', ptype: m.ptype || '',
+      procs: (m.procs || []).filter(k=>P[k]),
+      note: m.note || '', prep: !!m.prep, luv: m.luv || '30', open: false
+    });
+  });
+  mats = mats.filter(m=>m.name.trim() || (m.ptype||'').trim() || m.procs.length || (m.note||'').trim() || m.prep);
+  if(!mats.length) mats = [{id:nextId++, name:'', ptype:'', procs:[], note:'', prep:false, luv:'30', open:true}];
+  renderMats(); update();
+  toast(lost ? 'Додано, але частина процесів більше не існує' : 'Набір додано');
+}
+
+/** Кнопки наборів під матеріалами — для замовника, вписаного у формі. */
+function renderSetButtons(){
+  const box = $('#setBar');
+  if(!box) return;
+  const c = clientByName($('#client').value);
+  box.innerHTML = '';
+  if(!c || !c.sets.length){ box.hidden = true; return; }
+  box.hidden = false;
+  const lab = document.createElement('span');
+  lab.className = 'cmeta'; lab.textContent = 'Набори «' + c.name + '»:';
+  box.append(lab);
+  c.sets.forEach(st=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='setbtn'; b.textContent = st.name;
+    b.addEventListener('click', ()=>addSet(st));
+    box.append(b);
+  });
+}
+
+function saveClientFromForm(){
+  const name = $('#client').value.trim();
+  if(!name){ toast('Спершу вкажіть замовника'); return; }
+
+  const path = $('#path').value.trim();
+  const cut = path.lastIndexOf('\\');
+  const existing = clientByName(name);
+  if(existing && !existing.mine){
+    toast('Картка з такою назвою належить колезі — змініть назву');
+    return;
+  }
+
+  srv('clients.save', {
+    id: existing ? existing.id : null,
+    name: name,
+    defaults: {
+      manager: managerValue(),
+      pathPrefix: cut > 1 ? path.slice(0, cut + 1) : '',
+      extra: $('#extra').value.trim(),
+      givePost: givPost,
+      giveDest: givDest,
+      giveExtra: $('#giveoutOther').value.trim()
+    }
+  }).then(()=>{
+    toast(existing ? 'Картку оновлено' : 'Картку створено');
+    loadClients(true);
+  }).catch(e=>toast('Помилка: ' + e.message));
+}
+
+function saveSetFromForm(){
+  const name = $('#client').value.trim();
+  const c = clientByName(name);
+  if(!c){ toast('Спершу збережіть картку замовника'); return; }
+  if(!c.mine){ toast('Це чужа картка — набір до неї додати не можна'); return; }
+
+  const filled = mats.filter(m=>m.name.trim() || m.procs.length);
+  if(!filled.length){ toast('Немає що зберігати'); return; }
+
+  const title = window.prompt('Назва набору', 'типовий');
+  if(!title) return;
+
+  srv('sets.save', {
+    client_id: c.id,
+    name: title,
+    materials: filled.map(m=>({
+      name: m.name, ptype: m.ptype, procs: m.procs,
+      note: m.note, prep: m.prep, luv: m.luv
+    }))
+  }).then(()=>{ toast('Набір збережено'); loadClients(true); })
+    .catch(e=>toast('Помилка: ' + e.message));
+}
+
+function shareClient(c){
+  const others = (BOOT.people || []).filter(x=>notMe_(x.email));
+  if(!others.length){ toast('Немає з ким ділитися'); return; }
+  const current = (c.shared || []).join(', ');
+  const raw = window.prompt(
+    'Кому видно картку «' + c.name + '»?\nПошти через кому.\n\nДоступні:\n'
+    + others.map(x=>x.email + ' — ' + x.name).join('\n'),
+    current);
+  if(raw === null) return;
+  srv('shares.set', {
+    client_id: c.id,
+    emails: raw.split(',').map(x=>x.trim()).filter(Boolean)
+  }).then(r=>{ toast('Доступ оновлено: ' + r.count); loadClients(true); })
+    .catch(e=>toast('Помилка: ' + e.message));
+}
+
+/* ============================================================
+ *  Адміністрування
+ * ============================================================ */
+
+const RIGHTS = BOOT.rights || {};
+
+function cellInput(value, onChange, width){
+  const i = document.createElement('input');
+  i.type = 'text'; i.value = value || '';
+  if(width) i.style.width = width;
+  i.addEventListener('change', ()=>onChange(i.value.trim()));
+  return i;
+}
+
+function cellCheck(value, onChange, disabled){
+  const i = document.createElement('input');
+  i.type = 'checkbox'; i.checked = !!value; i.disabled = !!disabled;
+  i.addEventListener('change', ()=>onChange(i.checked));
+  return i;
+}
+
+function adminSection(title, open){
+  const sec = document.createElement('div');
+  sec.className = 'asec';
+
+  const h = document.createElement('h3');
+  h.className = 'asec-head';
+  const t = document.createElement('span'); t.textContent = title;
+  const c = document.createElement('span');
+  c.className = 'caret'; c.textContent = open ? '▾' : '▸';
+  h.append(t, c);
+
+  const body = document.createElement('div');
+  body.className = 'asec-body' + (open ? '' : ' closed');
+
+  h.addEventListener('click', ()=>{
+    const closed = body.classList.contains('closed');
+    body.classList.toggle('closed', !closed);
+    c.textContent = closed ? '▾' : '▸';
+  });
+
+  sec.append(h, body);
+  sec._body = body;
+  return sec;
+}
+
+function adminTable(headers){
+  const t = document.createElement('table');
+  t.className = 'atable';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h=>{ const th = document.createElement('th'); th.textContent = h; tr.append(th); });
+  thead.append(tr); t.append(thead);
+  const tb = document.createElement('tbody');
+  t.append(tb);
+  // Таблиця лишається таблицею — прокрутку бере на себе обгортка,
+  // інакше колонки стискаються до вмісту й половина ширини пустує.
+  const wrap = document.createElement('div');
+  wrap.className = 'ascroll';
+  wrap.append(t);
+  wrap._body = tb;
+  return wrap;
+}
+
+let adminCache = null;
+
+function loadAdmin(force){
+  const box = $('#aBody');
+  if(!RIGHTS.manageUsers){ box.textContent = 'Недостатньо прав.'; return; }
+  if(!force && adminCache){ renderAdmin(adminCache[0], adminCache[1]); return; }
+  box.textContent = 'Завантаження…';
+  // Одне звернення замість двох: місток коштує дорожче, ніж обидві дії разом.
+  srv('multi', { calls: [{ action:'users.list' }, { action:'config' }] })
+    .then(res=>{
+      const r = (res && res.results) || [];
+      if(!r[0] || !r[0].ok) throw new Error(r[0] ? r[0].error : 'Порожня відповідь');
+      if(!r[1] || !r[1].ok) throw new Error(r[1] ? r[1].error : 'Порожня відповідь');
+      const users = r[0].data, cfg = r[1].data;
+      adminCache = [users, cfg];
+      renderAdmin(users, cfg);
+    })
+    .catch(e=>{ box.textContent = 'Помилка: ' + e.message; });
+}
+
+function renderAdmin(users, cfg){
+  const box = $('#aBody');
+  box.innerHTML = '';
+
+  /* --- користувачі --- */
+  const us = adminSection('Користувачі', true);
+  const ut = adminTable(['Пошта','Імʼя','Посада','Старший','Керівник','Готує макети','Активний']);
+  const drawUser = (u)=>{
+    const tr = document.createElement('tr');
+    const save = patch => srv('users.save', Object.assign({ email: u.email }, u, patch))
+      .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
+
+    const mail = document.createElement('td'); mail.textContent = u.email;
+    const name = document.createElement('td');
+    name.append(cellInput(u.name, v=>{ u.name = v; save({ name: v }); }));
+    const pos = document.createElement('td');
+    pos.append(cellInput(u.position, v=>{ u.position = v; save({ position: v }); }, '180px'));
+    const sen = document.createElement('td');
+    sen.append(cellCheck(u.senior, v=>{ u.senior = v; save({ senior: v }); }, !RIGHTS.grantRoles));
+    const ch = document.createElement('td');
+    ch.append(cellCheck(u.chief, v=>{ u.chief = v; save({ chief: v }); }, !RIGHTS.grantRoles));
+    const pr = document.createElement('td');
+    pr.append(cellCheck(u.prepares, v=>{ u.prepares = v; save({ prepares: v }); }));
+    const ac = document.createElement('td');
+    ac.append(cellCheck(u.active, v=>{ u.active = v; save({ active: v }); }));
+
+    tr.append(mail, name, pos, sen, ch, pr, ac);
+    ut._body.append(tr);
+  };
+  users.forEach(drawUser);
+  us._body.append(ut);
+
+  const addU = document.createElement('button');
+  addU.type='button'; addU.className='addmat'; addU.style.marginTop='10px';
+  addU.textContent = 'Додати користувача';
+  addU.addEventListener('click', ()=>{
+    const email = window.prompt('Пошта нового користувача');
+    if(!email) return;
+    const name = window.prompt('Імʼя', '') || '';
+    const position = window.prompt('Посада', 'менеджер') || '';
+    srv('users.save', { email: email.trim(), name: name, position: position, active: true })
+      .then(()=>{ toast('Додано'); loadAdmin(true); })
+      .catch(e=>toast('Помилка: ' + e.message));
+  });
+  us._body.append(addU);
+  if(!RIGHTS.grantRoles){
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = 'Позначки «Старший» і «Керівник» виставляє лише керівник.';
+    us._body.append(note);
+  }
+  box.append(us);
+
+  /* --- менеджери в листі --- */
+  const ms = adminSection('Менеджери — список для поля в листі', false);
+  const mt = adminTable(['Імʼя','Пошта','Активний']);
+  (cfg.managers || []).forEach(m=>{
+    const tr = document.createElement('tr');
+    const save = patch => srv('managers.save', Object.assign({ id: m.id, name: m.name, email: m.mail }, patch))
+      .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
+    const n = document.createElement('td');
+    n.append(cellInput(m.name, v=>{ m.name = v; save({ name: v }); }));
+    const e = document.createElement('td');
+    e.append(cellInput(m.mail, v=>{ m.mail = v; save({ email: v }); }, '220px'));
+    const a = document.createElement('td');
+    a.append(cellCheck(true, v=>save({ active: v })));
+    tr.append(n, e, a);
+    mt._body.append(tr);
+  });
+  ms._body.append(mt);
+  const addM = document.createElement('button');
+  addM.type='button'; addM.className='addmat'; addM.style.marginTop='10px';
+  addM.textContent = 'Додати менеджера';
+  addM.addEventListener('click', ()=>{
+    const name = window.prompt('Імʼя менеджера');
+    if(!name) return;
+    const mail = window.prompt('Пошта (можна лишити порожньою)', '') || '';
+    srv('managers.save', { name: name, email: mail, active: true })
+      .then(()=>{ toast('Додано'); loadAdmin(true); })
+      .catch(e=>toast('Помилка: ' + e.message));
+  });
+  ms._body.append(addM);
+  box.append(ms);
+
+  if(!RIGHTS.manageCatalog) return;
+
+  /* --- відділи --- */
+  const ds = adminSection('Відділи', false);
+  const dt = adminTable(['Ключ','Адреса','Назва','Пошта керівника','Активний']);
+  (cfg.departments || []).forEach(d=>{
+    const tr = document.createElement('tr');
+    const save = patch => srv('departments.save', Object.assign({ key: d.key }, patch))
+      .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
+    const k = document.createElement('td'); k.textContent = d.key;
+    const e = document.createElement('td');
+    e.append(cellInput(d.mail, v=>{ d.mail = v; save({ email: v }); }, '220px'));
+    const t = document.createElement('td');
+    t.append(cellInput(d.title, v=>{ d.title = v; save({ title: v }); }, '220px'));
+    const h = document.createElement('td');
+    h.append(cellCheck(d.head, v=>save({ head_mail: v })));
+    const a = document.createElement('td');
+    a.append(cellCheck(true, v=>save({ active: v })));
+    tr.append(k, e, t, h, a);
+    dt._body.append(tr);
+  });
+  ds._body.append(dt);
+  const dNote = document.createElement('p');
+  dNote.className='hint';
+  dNote.textContent = '«Пошта керівника» лишається в копії, коли замовлення подається на підготовку.';
+  ds._body.append(dNote);
+  box.append(ds);
+
+  /* --- процеси --- */
+  const ps = adminSection('Процеси', false);
+  const pt = adminTable(['Ключ','Напис','Підпис на кнопці','Уточнення в листі','Група','Один у групі','Відділи','Порядок','Активний']);
+  (cfg.processes || []).forEach((x, i)=>{
+    const tr = document.createElement('tr');
+    const save = patch => srv('processes.save', Object.assign({ key: x.key }, patch))
+      .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
+    const k = document.createElement('td'); k.textContent = x.key;
+    const l = document.createElement('td');
+    l.append(cellInput(x.label, v=>save({ label: v }), '160px'));
+    const cn = document.createElement('td');
+    cn.append(cellInput(x.chipNote, v=>save({ chip_note: v }), '120px'));
+    const ln = document.createElement('td');
+    ln.append(cellInput(x.note, v=>save({ letter_note: v }), '120px'));
+    const g = document.createElement('td');
+    g.append(cellInput(x.group, v=>save({ group_name: v }), '170px'));
+    const sg = document.createElement('td');
+    sg.append(cellCheck(x.single, v=>save({ single: v })));
+    const dd = document.createElement('td');
+    dd.append(cellInput((x.depts || []).join(','), v=>save({ depts: v }), '150px'));
+    const so = document.createElement('td');
+    so.append(cellInput(String((i + 1) * 10), v=>save({ sort: Number(v) || 0 }), '60px'));
+    const a = document.createElement('td');
+    a.append(cellCheck(true, v=>save({ active: v })));
+    tr.append(k, l, cn, ln, g, sg, dd, so, a);
+    pt._body.append(tr);
+  });
+  ps._body.append(pt);
+  const addP = document.createElement('button');
+  addP.type='button'; addP.className='addmat'; addP.style.marginTop='10px';
+  addP.textContent = 'Додати процес';
+  addP.addEventListener('click', ()=>{
+    const key = window.prompt('Ключ (латиницею, без пробілів)');
+    if(!key) return;
+    const label = window.prompt('Напис на кнопці', '') || '';
+    const group = window.prompt('Група', 'Постобробка на місці') || '';
+    const depts = window.prompt('Відділи через кому (порожньо — нікому)', '') || '';
+    srv('processes.save', { key: key.trim(), label: label, group_name: group,
+                            depts: depts, single: false, active: true })
+      .then(()=>{ toast('Додано — зміни буде видно після перезавантаження'); loadAdmin(true); })
+      .catch(e=>toast('Помилка: ' + e.message));
+  });
+  ps._body.append(addP);
+  const pNote = document.createElement('p');
+  pNote.className='hint';
+  pNote.textContent = 'Процеси й відділи не видаляються, а вимикаються: на них посилаються журнал і збережені набори. '
+                    + 'Зміни тут зʼявляться у формі після перезавантаження сторінки.';
+  ps._body.append(pNote);
+  box.append(ps);
+
+  /* --- матеріали --- */
+  const ms2 = adminSection('Матеріали — підказки у полі назви', false);
+  const mt2 = adminTable(['Назва','Порядок','Активний']);
+  (cfg.materials || []).forEach((x, i)=>{
+    const tr = document.createElement('tr');
+    const save = patch => srv('materials.save', Object.assign({ id: x.id, name: x.name }, patch))
+      .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
+    const n = document.createElement('td');
+    n.append(cellInput(x.name, v=>{ x.name = v; save({ name: v }); }, '260px'));
+    const so = document.createElement('td');
+    so.append(cellInput(String((i + 1) * 10), v=>save({ sort: Number(v) || 0 }), '60px'));
+    const a = document.createElement('td');
+    a.append(cellCheck(true, v=>save({ active: v })));
+    tr.append(n, so, a);
+    mt2._body.append(tr);
+  });
+  ms2._body.append(mt2);
+  const addM2 = document.createElement('button');
+  addM2.type='button'; addM2.className='addmat'; addM2.style.marginTop='10px';
+  addM2.textContent = 'Додати матеріал';
+  addM2.addEventListener('click', ()=>{
+    const name = window.prompt('Назва матеріалу');
+    if(!name) return;
+    srv('materials.save', { name: name, active: true })
+      .then(()=>{ toast('Додано — у формі зʼявиться після перезавантаження'); loadAdmin(true); })
+      .catch(e=>toast('Помилка: ' + e.message));
+  });
+  ms2._body.append(addM2);
+  box.append(ms2);
+}
+
+/* ---------- підключення нових екранів ---------- */
+Array.from(document.querySelectorAll('.tab')).forEach(t=>{
+  t.addEventListener('click', ()=>showView(t.dataset.view));
+});
+
+$('#jReload').addEventListener('click', ()=>loadJournal(true));
+$('#jAll').addEventListener('change', ()=>loadJournal(true));
+let jTimer = null;
+$('#jQuery').addEventListener('input', ()=>{
+  clearTimeout(jTimer);
+  jTimer = setTimeout(()=>loadJournal(true), 400);
+});
+
+$('#saveClient').addEventListener('click', saveClientFromForm);
+$('#saveSet').addEventListener('click', saveSetFromForm);
+
+// Вписали замовника, який збігся з карткою — службові поля підтягуються.
+let lastApplied = '';
+$('#client').addEventListener('input', ()=>{
+  const name = $('#client').value.trim();
+  renderSetButtons();
+  if(!name || name === lastApplied) return;
+  const c = clientByName(name);
+  if(c){ lastApplied = name; applyClient(c); }
+});
+
+/* ---------- init ---------- */
+(function init(){
+  const storedTheme = recall('theme');
+  if(!BOOT.allowed){
+    document.body.innerHTML =
+      '<div class="wrap"><header class="top"><h1>Немає доступу</h1></header>' +
+      '<p>Ця адреса не заведена в системі: <b></b></p>' +
+      '<p class="hint">Зверніться до Ольги Мартинюк, Тетяни Нікітюк або Олександра Кубая, щоб вас додали.</p></div>';
+    const b = document.querySelector('b');
+    if(b) b.textContent = BOOT.email || '—';
+    return;
+  }
+  const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(storedTheme || (sysDark ? 'dark' : 'light'));
+
+  const dl = $('#matlist');
+  MATERIALS.forEach(m=>{ const o=document.createElement('option'); o.value=m; dl.append(o); });
+
+  const p = recall('path');
+  if(p){
+    const cut = p.lastIndexOf('\\');
+    $('#path').value = cut > 1 ? p.slice(0, cut+1) : p;
+  }
+  const sel = $('#manager');
+  sel.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = ''; none.textContent = '—';
+  sel.append(none);
+  (CFG.managers || []).forEach(x=>{
+    const o = document.createElement('option');
+    o.value = x.name; o.textContent = x.name;
+    sel.append(o);
+  });
+  const other = document.createElement('option');
+  other.value = '__other'; other.textContent = 'інше…';
+  sel.append(other);
+
+  // Якщо той, хто зайшов, сам є в списку менеджерів — підставляємо його.
+  const selfManager = (CFG.managers || [])
+    .filter(x=>x.mail && !notMe_(x.mail))[0];
+
+  const m = selfManager ? selfManager.name : recall('manager');
+  if(m){
+    const known = Array.from(sel.options).some(o=>o.value===m);
+    if(known){ sel.value = m; }
+    else {
+      sel.value = '__other';
+      $('#manager-other-wrap').hidden = false;
+      $('#managerOther').value = m;
+    }
+  }
+  syncManagerCc();
+
+  if(RIGHTS.manageUsers){
+    const t = document.querySelector('.tab[data-view="admin"]');
+    if(t) t.hidden = false;
+  }
+  if(RIGHTS.allJournal){
+    $('#jAllWrap').hidden = false;
+  }
+  showView('form');
+
+  if(ME.name || ME.email){
+    const chip = $('#whoChip');
+    chip.innerHTML = '';
+    if(ME.name){
+      const b = document.createElement('b');
+      b.textContent = ME.name;
+      chip.append(b);
+    }
+    if(ME.email){
+      const sp = document.createElement('span');
+      sp.textContent = ME.email;
+      chip.append(sp);
+    }
+    chip.hidden = false;
+  }
+
+  rFrom = nextWorkday();
+  renderMats();
+  renderGiveout();
+  renderCal();
+  update();
+
+  // Без прив'язаної пошти лист відправити нічим — хай це буде видно одразу,
+  // а не аж у момент, коли людина натисне «Подати замовлення».
+  // Кнопка пароля — лише тим, хто ним і заходить. Решта входить через Google.
+  if(BOOT.via === 'password') $('#passBtn').hidden = false;
+
+  if(BOOT.via !== 'password' && !(BOOT.mail && BOOT.mail.linked)){
+    $('#mailBtn').classList.add('warn');
+    setTimeout(()=>toast('Прив’яжіть пошту — без неї лист не піде'), 900);
+  }
+})();
+
+/* ============================================================
+ *  Передзавантаження вкладок
+ *
+ *  Журнал і замовники тягнуться у фоні одним запитом, щойно форма
+ *  намалювалась. Перший перехід на вкладку стає миттєвим, а коштує
+ *  це одне звернення замість двох.
+ * ============================================================ */
+
+let prefetchDone = false;
+
+function prefetchTabs(){
+  if(prefetchDone || !BOOT.allowed) return;
+  prefetchDone = true;
+
+  srv('multi', { calls: [
+    { action: 'orders.list',  payload: { scope: 'mine', query: '', limit: 200 } },
+    { action: 'clients.list', payload: {} }
+  ]}).then(res=>{
+    const r = (res && res.results) || [];
+
+    // Якщо людина встигла відкрити вкладку сама — не чіпаємо свіжіші дані.
+    if(r[0] && r[0].ok && !journalCache){
+      journalCache = r[0].data.orders || [];
+      journalKey = 'mine|';
+      if(currentView === 'journal') renderJournal();
+    }
+    if(r[1] && r[1].ok && !clientsCache){
+      clientsCache = r[1].data.clients || [];
+      renderSetButtons();
+      if(currentView === 'clients') renderClients();
+    }
+  }).catch(()=>{});   // не вийшло — вкладка просто завантажиться сама
+}
+
+if(BOOT.allowed) setTimeout(prefetchTabs, 1200);
+
+/* ============================================================
+ *  Заміри швидкодії
+ *
+ *  Сторінка тримає заміри в пам'яті й віддає їх пачкою — коли
+ *  вкладку згортають або раз на кілька хвилин. Один запис у базу
+ *  на сеанс замість запису на кожну дію.
+ * ============================================================ */
+
+var perfBuf = [];
+const PERF_MAX   = 40;             // більше в пам'яті не тримаємо
+const PERF_EVERY = 4 * 60 * 1000;  // як часто віддавати накопичене
+
+function perfMark(kind, ms, extra){
+  if(!perfBuf || perfBuf.length >= PERF_MAX) return;
+  perfBuf.push({ kind: kind, ms: Math.round(ms), extra: extra || '' });
+}
+
+function perfFlush(){
+  if(!perfBuf || !perfBuf.length) return;
+  const rows = perfBuf;
+  perfBuf = [];
+  // Навмисне повз srv(): інакше запис замірів міряв би сам себе.
+  API.call('perf.log', { rows: rows }).catch(()=>{});
+}
+
+if(BOOT.allowed){
+  // Скільки сторінка відкривалась: сервер + мережа + малювання.
+  perfMark('сторінка', performance.now(), 'статична');
+
+  setInterval(perfFlush, PERF_EVERY);
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) perfFlush(); });
+  window.addEventListener('pagehide', perfFlush);
+}
+
+}
+</script>
+<script>
+/* ============================================================
+ *  Вхід
+ *
+ *  Поки людина не увійшла, застосунок навіть не запускається:
+ *  на екрані лише вікно входу. Коли служба підтвердила — віддаємо
+ *  їй дані й малюємо все решта.
+ * ============================================================ */
+
+(async function boot(){
+  const gate = document.getElementById('gate');
+  const err = document.getElementById('gateErr');
+
+  const fail = m => { err.textContent = m; err.hidden = false; };
+  const busy = on => {
+    ['gateGoogle','gatePass','gateGo'].forEach(id=>{
+      const b = document.getElementById(id);
+      if(b) b.disabled = on;
+    });
+  };
+
+  function start(me){
+    window.__BOOT__ = {
+      allowed: true,
+      email: me.user.email,
+      user: me.user,
+      via: me.via,
+      rights: me.rights,
+      config: me.config,
+      people: me.people,
+      mail: me.mail
+    };
+    gate.remove();
+    startApp();
+  }
+
+  /* 1. Повернення від Google після згоди. */
+  const q = new URLSearchParams(location.search);
+  if(q.get('error')){
+    history.replaceState(null, '', location.pathname);
+    fail('Вхід скасовано.');
+  } else if(q.get('code')){
+    busy(true);
+    try {
+      const me = await API.call('auth.exchange', { code: q.get('code'), state: q.get('state') });
+      API.remember(me.session);
+      history.replaceState(null, '', location.pathname);
+      return start(me);
+    } catch(e){
+      history.replaceState(null, '', location.pathname);
+      fail(e.message);
+    }
+    busy(false);
+  }
+
+  /* 2. Може, сесія ще жива з минулого разу. */
+  if(API.session()){
+    try { return start(await API.call('auth.me')); }
+    catch(e){ API.remember(''); }
+  }
+
+  /* 3. Ні — показуємо вікно входу. */
+  document.getElementById('gateWait').hidden = true;
+  document.getElementById('gateControls').hidden = false;
+  document.querySelectorAll('header.top .logo').forEach(img=>{
+    document.getElementById('gateLogo').append(img.cloneNode());
+  });
+
+  document.getElementById('gateGoogle').addEventListener('click', async ()=>{
+    busy(true); err.hidden = true;
+    try { await API.login(); }
+    catch(e){ fail(e.message); busy(false); }
+  });
+
+  document.getElementById('gatePass').addEventListener('click', ()=>{
+    document.getElementById('gatePassForm').hidden = false;
+    document.getElementById('gatePass').hidden = true;
+    document.getElementById('gateMail').focus();
+  });
+
+  document.getElementById('gateGo').addEventListener('click', async ()=>{
+    err.hidden = true;
+    const email = document.getElementById('gateMail').value.trim();
+    const pass = document.getElementById('gateWord').value;
+    try {
+      const me = await API.call('auth.password', { email: email, password: pass });
+      API.remember(me.session);
+      start(me);
+    } catch(e){ fail(e.message); }
+  });
+
+  document.getElementById('gateWord').addEventListener('keydown', e=>{
+    if(e.key === 'Enter') document.getElementById('gateGo').click();
+  });
+})();
+</script>
+</body>
+</html>
