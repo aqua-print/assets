@@ -472,6 +472,16 @@ pre.letter{
 /* Випадний список збережених замовників під полем «Замовник». */
 /* Поле менеджера: під списком може зʼявитися рядок для ручного імені.
    Раніше він виносився в окремий рядок під усією смугою й губився. */
+/* Позначка «терміново» — навмисне гучна: її мають помітити й той,
+   хто подає замовлення, і той, хто потім читає тему листа. */
+.urg{display:flex;flex-direction:column;justify-content:flex-start}
+.urgbox{
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+  font-size:15px;font-weight:700;letter-spacing:.04em;color:var(--alert);
+  padding:7px 2px;cursor:pointer;
+}
+.urgbox input{accent-color:var(--alert);width:16px;height:16px;cursor:pointer}
+
 .mgrfld{display:flex;flex-direction:column}
 .mgrfld #managerOther{margin-top:6px}
 
@@ -723,6 +733,10 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
   <label class="fld">
     <span>Час</span>
     <input type="time" id="readytime">
+  </label>
+  <label class="fld urg" title="Додає слово ТЕРМІНОВО в тему листа">
+    <span>&nbsp;</span>
+    <span class="urgbox"><input type="checkbox" id="urgent"> ТЕРМІНОВО</span>
   </label>
 </div>
 <div class="striprow">
@@ -1543,6 +1557,46 @@ function managerValue(){
   return v;
 }
 
+/* ---------- терміновість ----------
+   Коли готовність стоїть на сьогодні, замовлення термінове за
+   визначенням — позначку ставимо самі й не даємо зняти. В усіх інших
+   випадках вирішує людина, і її вибір запамʼятовується: якщо вона
+   поставила галочку, а потім посунула дату, галочка лишається. */
+
+let urgentManual = false;
+
+function todayIso(){
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  return iso(d);
+}
+
+function urgentForced(){
+  return !!rFrom && rFrom === todayIso() && (!rTo || rTo === rFrom);
+}
+
+function syncUrgent(){
+  const box = $('#urgent');
+  const wrap = box.closest('.urg');
+  const forced = urgentForced();
+
+  box.disabled = forced;
+  box.checked = forced ? true : urgentManual;
+  if(wrap){
+    wrap.title = forced
+      ? 'Готовність на сьогодні — позначка стоїть автоматично'
+      : 'Додає слово ТЕРМІНОВО в тему листа';
+  }
+}
+
+/* Тема листа. Одна функція на всіх, хто її показує чи надсилає,
+   інакше слово «ТЕРМІНОВО» рано чи пізно десь загубилося б. */
+function subjectText(){
+  const name = $('#client').value.trim();
+  if(!name) return '';
+  return $('#urgent').checked ? name + ' ТЕРМІНОВО' : name;
+}
+
 function buildLines(){
   const L = [];
   const push = (t, bold) => L.push({t:t, b:!!bold});
@@ -1669,6 +1723,7 @@ function validate(){
 
 /* ---------- render ---------- */
 function update(){
+  syncUrgent();
   const to = collectTo();
   const toList = $('#toList');
   toList.innerHTML = '';
@@ -1704,7 +1759,7 @@ function update(){
     ? 'Адреса монтажу'
     : 'Уточнення по доставці — не обов\'язково';
 
-  const subj = $('#client').value.trim();
+  const subj = subjectText();
   const lines = buildLines();
   const head = subj ? '<b>Тема:</b> '+escapeHtml(subj)+'<br><br>' : '';
   const bodyHtml = lines.length ? lines.map(lineHtml).join('<br>') : '…';
@@ -1743,6 +1798,8 @@ function resetForm(){
 
   $('#prepAll').checked = false;
   $('#ccManager').checked = false;
+  urgentManual = false;
+  $('#urgent').checked = false;
   $('#ccMontazh').checked = false;
   $('#ccExtra').value = '';
 
@@ -1791,7 +1848,7 @@ $('#copyAll').addEventListener('click',()=>{
   const cc = collectCc().map(c=>c.mail).join(', ');
   const t = ['Кому: '+to];
   if(cc) t.push('Копія: '+cc);
-  t.push('Тема: '+$('#client').value.trim(), '', buildBody());
+  t.push('Тема: '+subjectText(), '', buildBody());
   copy(t.join('\n'),'Лист');
 });
 let confirmAction = null;
@@ -1800,7 +1857,7 @@ function orderSummary(){
   const to = collectTo().map(x=>x.mail);
   const cc = collectCc().map(c=>c.mail);
   const lines = [
-    'Тема: ' + ($('#client').value.trim() || '—'),
+    'Тема: ' + (subjectText() || '—'),
     'Кому: ' + (to.length ? to.join(', ') : '—')
   ];
   if(cc.length) lines.push('Копія: ' + cc.join(', '));
@@ -1833,7 +1890,7 @@ function payload(){
   return {
     to: collectTo().map(x=>x.mail).join(','),
     cc: collectCc().map(c=>c.mail).join(','),
-    subject: $('#client').value.trim(),
+    subject: subjectText(),
     body: buildBody(),
     html: buildHtmlBody(),
     files: files.map(f=>({name:f.name, type:f.type, data:f.data})),
@@ -1888,6 +1945,13 @@ $('#sendOrder').addEventListener('click',()=>{
   .forEach(id=>$('#'+id).addEventListener('input',update));
 ['prepAll','ccMontazh','ccManager']
   .forEach(id=>$('#'+id).addEventListener('change',update));
+
+// Власний обробник: спершу запамʼятовуємо вибір людини, і лише потім
+// перемальовуємо — інакше update() одразу затер би його.
+$('#urgent').addEventListener('change', ()=>{
+  if(!$('#urgent').disabled) urgentManual = $('#urgent').checked;
+  update();
+});
 
 // Наш монтаж — замовлення лишається в майстерні, а уточнення стає адресою монтажу.
 $('#ccMontazh').addEventListener('change', e=>{
