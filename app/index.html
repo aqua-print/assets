@@ -2356,6 +2356,26 @@ function loadJournal(force){
     .catch(e=>{ box.textContent = 'Помилка: ' + e.message; });
 }
 
+/**
+ * Готовність у вигляді, придатному для читання.
+ *
+ * Замовлення, подані до 24.11.2026, зберігали готовність датою: Таблиці
+ * самі перетворювали «24.11» на дату, і назад приходило
+ * 2026-11-23T22:00:00.000Z. Нові записи йдуть текстом, а старі
+ * показуємо по-людськи тут.
+ */
+function fmtDeadline(v){
+  const s = String(v || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}T/.test(s)) return s;
+  const d = new Date(s);
+  if(isNaN(d)) return s;
+  const p = n => String(n).padStart(2,'0');
+  const day = p(d.getDate()) + '.' + p(d.getMonth() + 1);
+  return (d.getHours() || d.getMinutes())
+    ? day + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
+    : day;
+}
+
 function renderJournal(){
   const box = $('#jList');
   box.innerHTML = '';
@@ -2375,7 +2395,8 @@ function renderJournal(){
 
     const m = document.createElement('span');
     m.className = 'jmeta';
-    m.textContent = [o.sender_name, o.deadline, o.giveout].filter(Boolean).join(' · ');
+    m.textContent = [o.sender_name, fmtDeadline(o.deadline), o.giveout]
+      .filter(Boolean).join(' · ');
 
     row.append(d, c);
     if(o.mode === 'підготовка'){
