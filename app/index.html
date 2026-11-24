@@ -478,7 +478,28 @@ pre.letter{
    Раніше він виносився в окремий рядок під усією смугою й губився. */
 /* Позначка «терміново» — навмисне гучна: її мають помітити й той,
    хто подає замовлення, і той, хто потім читає тему листа. */
-.rdyfld{display:flex;flex-direction:column}
+/* Пояснення тримаємо впритул до самої галочки: внизу екрана його
+   не видно саме тоді, коли людина дивиться сюди. Виноска висить
+   поверх, тож смуга не стрибає. */
+.rdyfld{display:flex;flex-direction:column;position:relative}
+.urgnote{
+  position:absolute;right:0;top:100%;margin-top:7px;z-index:30;
+  width:max-content;max-width:240px;
+  background:var(--alert);color:#fff;
+  font-size:13.5px;font-weight:600;line-height:1.35;text-align:right;
+  padding:9px 12px;border-radius:6px;
+  box-shadow:0 8px 20px rgba(0,0,0,.2);
+  opacity:0;transform:translateY(-5px);pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+}
+.urgnote.on{opacity:1;transform:none}
+.urgbox.flash{animation:urgpulse .45s ease}
+@keyframes urgpulse{
+  0%,100%{transform:none}
+  30%{transform:scale(1.12)}
+  65%{transform:scale(.98)}
+}
+@media (prefers-reduced-motion:reduce){.urgbox.flash{animation:none}}
 .rdyfld > .urgbox{
   display:flex;align-items:center;gap:7px;white-space:nowrap;
   margin-top:7px;font-size:14.5px;font-weight:700;letter-spacing:.04em;
@@ -737,6 +758,9 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
     <label class="urgbox" title="Додає слово ТЕРМІНОВО в тему листа">
       <input type="checkbox" id="urgent"> ТЕРМІНОВО
     </label>
+    <div class="urgnote" id="urgNote" role="status" hidden>
+      Готовність на сьогодні —<br>зняти не можна
+    </div>
   </div>
   <label class="fld">
     <span>Час</span>
@@ -1952,10 +1976,32 @@ $('#sendOrder').addEventListener('click',()=>{
 
 // Власний обробник: спершу запамʼятовуємо вибір людини, і лише потім
 // перемальовуємо — інакше update() одразу затер би його.
+let urgNoteTimer = null;
+
+/* Показуємо, що галочка повернулася назад: сама вона смикається,
+   поруч виринає пояснення й висить, поки його точно помітять. */
+function urgWarn(){
+  const note = $('#urgNote');
+  const box = $('#urgent').closest('.urgbox');
+
+  note.hidden = false;
+  requestAnimationFrame(()=>note.classList.add('on'));
+
+  box.classList.remove('flash');
+  void box.offsetWidth;            // щоб анімація перезапустилась
+  box.classList.add('flash');
+
+  clearTimeout(urgNoteTimer);
+  urgNoteTimer = setTimeout(()=>{
+    note.classList.remove('on');
+    setTimeout(()=>{ note.hidden = true; }, 220);
+  }, 5000);
+}
+
 $('#urgent').addEventListener('change', ()=>{
   if(urgentForced()){
     $('#urgent').checked = true;      // на сьогодні зняти не можна
-    toast('Готовність на сьогодні — замовлення термінове');
+    urgWarn();
   } else {
     urgentManual = $('#urgent').checked;
   }
