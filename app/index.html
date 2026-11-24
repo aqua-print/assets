@@ -285,7 +285,8 @@ section.block > h2::after{content:"";flex:1;height:1px;background:var(--rule)}
   border:none;background:none;color:var(--ink);cursor:pointer;border-radius:5px;
 }
 .cal-day.out{color:var(--soft);opacity:.45}
-.cal-day:hover{background:var(--sunk)}
+.cal-day.past{color:var(--soft);opacity:.3;cursor:not-allowed;text-decoration:line-through}
+.cal-day:hover:not(:disabled){background:var(--sunk)}
 .cal-day.in{background:var(--cyan-fill);color:var(--cyan)}
 .cal-day.edge{background:var(--cyan);color:var(--card);font-weight:500}
 .cal-hint{margin:9px 0 0;font-size:12px;color:var(--soft);text-align:center;min-height:16px}
@@ -1466,16 +1467,24 @@ function renderCal(){
   grid.innerHTML = '';
   const offset = (new Date(y, m, 1).getDay()+6) % 7;
 
+  const today = todayIso();
+
   for(let i=0;i<42;i++){
     const d = new Date(y, m, 1-offset+i), v = iso(d);
+    const past = v < today;
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'cal-day'
       + (d.getMonth() !== m ? ' out' : '')
+      + (past ? ' past' : '')
       + (v === rFrom || v === rTo ? ' edge' : '')
       + (rTo && v > rFrom && v < rTo ? ' in' : '');
+    // Заднім числом замовлення не подають: день уже минув, а цех
+    // читатиме лист сьогодні.
+    b.disabled = past;
+    if(past) b.title = 'День уже минув';
     b.textContent = d.getDate();
-    b.onclick = ()=>pickDay(v);
+    if(!past) b.onclick = ()=>pickDay(v);
     grid.append(b);
   }
 
@@ -1493,6 +1502,7 @@ function renderCal(){
 }
 
 function pickDay(v){
+  if(v < todayIso()) return;   // заднім числом — ні звідки
   readyDefault = false;
   let close = false;
   if(rFrom && !rTo && v === rFrom){ close = true; }              // той самий день — підтвердження
@@ -1724,6 +1734,8 @@ function validate(){
 
   if(!managerValue()) out.push(['err','Не вказано менеджера.']);
   if(!rFrom) out.push(['err','Не вказано термін готовності.']);
+  else if(rFrom < todayIso())
+    out.push(['err','Готовність стоїть заднім числом — оберіть сьогодні або пізніше.']);
   if(!giveoutValue()) out.push(['err','Не вказано видачу.']);
   else if(givPost && !givDest && !giveoutExtra())
     out.push(['err','Після постобробки треба вказати, куди йде замовлення.']);
