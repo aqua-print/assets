@@ -93,6 +93,10 @@ img{max-width:100%}
   background:var(--card);border:1px solid var(--rule);border-radius:5px;
   padding:10px 12px;margin-bottom:8px;
   display:grid;grid-template-columns:1.1fr 2.2fr 1.1fr .9fr .6fr;gap:9px;
+  /* Без цього клітинки тягнуться на висоту найвищої в рядку, і те,
+     що притиснуте до низу поля — як стрілка списку замовників, —
+     зʼїжджає разом із нею. */
+  align-items:start;
 }
 @media (max-width:1000px){.strip{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.strip{grid-template-columns:1fr}}
@@ -481,7 +485,7 @@ pre.letter{
   color:var(--alert);cursor:pointer;
 }
 .rdyfld > .urgbox input{accent-color:var(--alert);width:16px;height:16px;cursor:pointer}
-.rdyfld > .urgbox:has(input:disabled){cursor:default}
+.rdyfld > .urgbox.locked, .rdyfld > .urgbox.locked input{cursor:default}
 
 .mgrfld{display:flex;flex-direction:column}
 .mgrfld #managerOther{margin-top:6px}
@@ -1580,9 +1584,9 @@ function syncUrgent(){
   const wrap = box.closest('.urgbox');
   const forced = urgentForced();
 
-  box.disabled = forced;
   box.checked = forced ? true : urgentManual;
   if(wrap){
+    wrap.classList.toggle('locked', forced);
     wrap.title = forced
       ? 'Готовність на сьогодні — позначка стоїть автоматично'
       : 'Додає слово ТЕРМІНОВО в тему листа';
@@ -1949,7 +1953,12 @@ $('#sendOrder').addEventListener('click',()=>{
 // Власний обробник: спершу запамʼятовуємо вибір людини, і лише потім
 // перемальовуємо — інакше update() одразу затер би його.
 $('#urgent').addEventListener('change', ()=>{
-  if(!$('#urgent').disabled) urgentManual = $('#urgent').checked;
+  if(urgentForced()){
+    $('#urgent').checked = true;      // на сьогодні зняти не можна
+    toast('Готовність на сьогодні — замовлення термінове');
+  } else {
+    urgentManual = $('#urgent').checked;
+  }
   update();
 });
 
