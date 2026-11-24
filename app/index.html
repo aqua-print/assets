@@ -18,6 +18,118 @@
   document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
 })();
 </script>
+<script>
+/* ============================================================
+ *  Служба
+ *
+ *  Сторінка лежить на власному домені, тому відкривається завжди
+ *  й у будь-кого. До Apps Script вона звертається тільки фоновими
+ *  запитами, а ті не несуть куків Google — отже Google не намагається
+ *  вгадати, чий це акаунт, і номер на кшталт /u/2/ ніде не виникає.
+ *  Саме через нього нинішній застосунок і не відкривався в половини.
+ * ============================================================ */
+
+/* Адреса розгорнутої служби Apps Script, та, що закінчується на /exec.
+   Міняється тільки тут. */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzSOcM0Ynkh50w6N4ltmfVkbi_LeATs8L3RKmCdJea5opeuZFZCZhwPeLV5TGVtRRJw/exec';
+
+const API = {
+  key: 'aqua_session',
+
+  session(){ try { return localStorage.getItem(API.key) || ''; } catch(e){ return ''; } },
+  remember(id){
+    try { id ? localStorage.setItem(API.key, id) : localStorage.removeItem(API.key); }
+    catch(e){}
+  },
+
+  async call(action, payload){
+    let res;
+    try {
+      res = await fetch(API_URL, {
+        method: 'POST',
+        /* Навмисне text/plain: з application/json браузер спершу надсилає
+           службовий запит OPTIONS, на який Apps Script відповідати не вміє.
+           Служба однаково читає тіло як JSON. */
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, session: API.session(), payload: payload || {} })
+      });
+    } catch(e){
+      throw new Error('Немає зв’язку зі службою');
+    }
+    const txt = await res.text();
+    let out;
+    try { out = JSON.parse(txt); }
+    catch(e){ throw new Error('Служба відповіла не так, як очікувалось'); }
+    if(!out.ok) throw new Error(out.error || 'Помилка служби');
+    return out.data;
+  },
+
+  async login(){
+    const r = await API.call('auth.url');
+    location.href = r.url;
+  },
+
+  async logout(){
+    // Замикаємо пам'ять одразу: поки служба відповідає на вихід,
+    // може доїхати відповідь про вхід і записати все назад.
+    KEEP.lock();
+    try { await API.call('auth.out'); } catch(e){}
+    API.remember('');
+    KEEP.forget();
+    location.href = location.pathname;
+  }
+};
+
+/* ============================================================
+ *  Пам'ять браузера
+ *
+ *  Останню відповідь служби відкладаємо тут же, у браузері.
+ *  Тоді наступне відкриття малює форму негайно, не чекаючи
+ *  служби: довідники й люди від разу до разу ті самі, а свіжі
+ *  дані надходять за дві секунди й тихо їх заміняють.
+ *
+ *  Пам'ять прив'язана до сесії: чужий вхід її не побачить, а
+ *  «Вийти» витирає її разом із сесією.
+ * ============================================================ */
+
+const KEEP = {
+  key: 'ord:boot',
+  DAYS: 7,
+
+  read(sid){
+    try {
+      const box = JSON.parse(localStorage.getItem(KEEP.key) || 'null');
+      if(!box || box.sid !== sid) return null;
+      if(Date.now() - (box.at || 0) > KEEP.DAYS * 86400 * 1000) return null;
+      return box.me || null;
+    } catch(e){ return null; }
+  },
+
+  locked: false,
+  lock(){ KEEP.locked = true; },
+
+  write(sid, me){
+    if(KEEP.locked) return;
+    // Браузер може не дати місця — тоді просто працюємо без пам'яті.
+    try { localStorage.setItem(KEEP.key, JSON.stringify({ sid, at: Date.now(), me })); }
+    catch(e){}
+  },
+
+  forget(){ try { localStorage.removeItem(KEEP.key); } catch(e){} }
+};
+
+/* Запит іде просто зараз, поки браузер лише читає сторінку: так він
+   летить одночасно зі шрифтами й розміткою, а не після них. Відповідь
+   чекає у цій обіцянці, доки застосунок до неї дійде. */
+window.__ME__ = (function(){
+  const q = location.search;
+  if(q.indexOf('code=') >= 0 || q.indexOf('error=') >= 0) return null;  // вертаємось від Google — там свій шлях
+  if(!API.session()) return null;                                       // ще не входили
+  const p = API.call('auth.me');
+  p.catch(()=>{});   // справжня обробка — у boot(); це лише щоб браузер не бурчав
+  return p;
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -911,65 +1023,6 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 </div>
-
-<script>
-/* ============================================================
- *  Служба
- *
- *  Сторінка лежить на власному домені, тому відкривається завжди
- *  й у будь-кого. До Apps Script вона звертається тільки фоновими
- *  запитами, а ті не несуть куків Google — отже Google не намагається
- *  вгадати, чий це акаунт, і номер на кшталт /u/2/ ніде не виникає.
- *  Саме через нього нинішній застосунок і не відкривався в половини.
- * ============================================================ */
-
-/* Адреса розгорнутої служби Apps Script, та, що закінчується на /exec.
-   Міняється тільки тут. */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzSOcM0Ynkh50w6N4ltmfVkbi_LeATs8L3RKmCdJea5opeuZFZCZhwPeLV5TGVtRRJw/exec';
-
-const API = {
-  key: 'aqua_session',
-
-  session(){ try { return localStorage.getItem(API.key) || ''; } catch(e){ return ''; } },
-  remember(id){
-    try { id ? localStorage.setItem(API.key, id) : localStorage.removeItem(API.key); }
-    catch(e){}
-  },
-
-  async call(action, payload){
-    let res;
-    try {
-      res = await fetch(API_URL, {
-        method: 'POST',
-        /* Навмисне text/plain: з application/json браузер спершу надсилає
-           службовий запит OPTIONS, на який Apps Script відповідати не вміє.
-           Служба однаково читає тіло як JSON. */
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: action, session: API.session(), payload: payload || {} })
-      });
-    } catch(e){
-      throw new Error('Немає зв’язку зі службою');
-    }
-    const txt = await res.text();
-    let out;
-    try { out = JSON.parse(txt); }
-    catch(e){ throw new Error('Служба відповіла не так, як очікувалось'); }
-    if(!out.ok) throw new Error(out.error || 'Помилка служби');
-    return out.data;
-  },
-
-  async login(){
-    const r = await API.call('auth.url');
-    location.href = r.url;
-  },
-
-  async logout(){
-    try { await API.call('auth.out'); } catch(e){}
-    API.remember('');
-    location.href = location.pathname;
-  }
-};
-</script>
 
 <script>
 function startApp(){
@@ -2126,10 +2179,21 @@ $('#addmat').addEventListener('click',()=>{
  *  Виклики до бази
  * ============================================================ */
 
+/* Дії, після яких відкладене в браузері стає неправдою: мінялись
+   довідники або люди. Витираємо, щоб наступне відкриття взяло свіже
+   зі служби, а не блимало старим. */
+const SPOILS = {
+  'users.save': 1, 'departments.save': 1, 'processes.save': 1, 'materials.save': 1
+};
+
 function srv(action, payload){
   const t0 = performance.now();
   return API.call(action, payload)
-    .then(r=>{ perfMark(action, performance.now() - t0, ''); return r; })
+    .then(r=>{
+      perfMark(action, performance.now() - t0, '');
+      if(SPOILS[action]) KEEP.forget();
+      return r;
+    })
     .catch(e=>{ perfMark(action, performance.now() - t0, 'помилка'); throw e; });
 }
 
@@ -2326,7 +2390,7 @@ function renderClients(){
       const bits = [];
       if(!c.mine) bits.push(c.source);
       if(c.defaults && c.defaults.manager) bits.push(c.defaults.manager);
-      if(c.sets.length) bits.push(c.sets.length + ' набор.');
+      if(c.sets && c.sets.length) bits.push(c.sets.length + ' набор.');
       meta.textContent = bits.join(' · ');
 
       const acts = document.createElement('div');
@@ -3016,12 +3080,29 @@ $('#client').addEventListener('input', ()=>{
 })();
 
 /* ============================================================
- *  Передзавантаження вкладок
+ *  Журнал і замовники на старті
  *
- *  Журнал і замовники тягнуться у фоні одним запитом, щойно форма
- *  намалювалась. Перший перехід на вкладку стає миттєвим, а коштує
- *  це одне звернення замість двох.
+ *  Служба віддає їх разом із входом, тож окремо ходити нікуди не
+ *  треба: просто розкладаємо те, що вже приїхало. Передзавантаження
+ *  лишилось на випадок, коли служба чомусь їх не доклала.
  * ============================================================ */
+
+function seedJournal(list){
+  if(!list) return;
+  // Якщо людина вже дивиться інший зріз — її вибір старший за наш.
+  if(journalCache && journalKey !== 'mine|||') return;
+  journalCache = list;
+  journalKey = 'mine|||';
+}
+
+function seedClients(list){
+  if(!list) return;
+  clientsCache = list;
+}
+
+seedJournal(BOOT.journal);
+seedClients(BOOT.clients);
+if(BOOT.clients) renderSetButtons();
 
 let prefetchDone = false;
 
@@ -3037,19 +3118,56 @@ function prefetchTabs(){
 
     // Якщо людина встигла відкрити вкладку сама — не чіпаємо свіжіші дані.
     if(r[0] && r[0].ok && !journalCache){
-      journalCache = r[0].data.orders || [];
-      journalKey = 'mine|||';
+      seedJournal(r[0].data.orders || []);
       if(currentView === 'journal') renderJournal();
     }
     if(r[1] && r[1].ok && !clientsCache){
-      clientsCache = r[1].data.clients || [];
+      seedClients(r[1].data.clients || []);
       renderSetButtons();
       if(currentView === 'clients') renderClients();
     }
   }).catch(()=>{});   // не вийшло — вкладка просто завантажиться сама
 }
 
-if(BOOT.allowed) setTimeout(prefetchTabs, 1200);
+if(BOOT.allowed && !(BOOT.journal && BOOT.clients)) setTimeout(prefetchTabs, 1200);
+
+/* ============================================================
+ *  Коли сторінка намалювалась із пам'яті
+ *
+ *  У цьому разі служба ще відповідає. Щойно відповідь прийшла —
+ *  журнал і замовників підмінюємо тихо, людина цього й не помітить.
+ *  А якщо змінилися довідники, права чи стан пошти, перемалювати
+ *  на місці вже не вийде: коли людина ще нічого не вводила, просто
+ *  оновлюємо сторінку, а коли вводила — попереджаємо й не чіпаємо.
+ * ============================================================ */
+
+/** Чи є у формі щось, що шкода втратити. */
+function formTouched(){
+  if(files.length) return true;
+  if(['client','path','link'].some(id=>{
+    const el = $('#' + id);
+    return el && el.value.trim();
+  })) return true;
+  return mats.some(m=>m.name.trim() || (m.ptype||'').trim() ||
+                      m.procs.length || (m.note||'').trim());
+}
+
+window.__TOAST__ = toast;
+
+window.__FRESH__ = function(fresh, old){
+  seedJournal(fresh.journal);
+  seedClients(fresh.clients);
+  if(fresh.clients) renderSetButtons();
+  if(currentView === 'journal' && journalKey === 'mine|||') renderJournal();
+  if(currentView === 'clients') renderClients();
+
+  const same = ['config','people','rights','mail'].every(k=>
+    JSON.stringify(fresh[k]) === JSON.stringify(old[k]));
+  if(same) return;
+
+  if(formTouched()) toast('Налаштування змінилися — оновіть сторінку, як закінчите');
+  else location.reload();
+};
 
 /* ============================================================
  *  Заміри швидкодії
@@ -3077,8 +3195,9 @@ function perfFlush(){
 }
 
 if(BOOT.allowed){
-  // Скільки сторінка відкривалась: сервер + мережа + малювання.
-  perfMark('сторінка', performance.now(), 'статична');
+  // Скільки сторінка відкривалась. «З пам'яті» — малювали, не чекаючи
+  // служби; «зі служби» — чекали на її відповідь.
+  perfMark('сторінка', performance.now(), BOOT.fromCache ? 'з пам’яті' : 'зі служби');
 
   setInterval(perfFlush, PERF_EVERY);
   document.addEventListener('visibilitychange', ()=>{ if(document.hidden) perfFlush(); });
@@ -3108,7 +3227,7 @@ if(BOOT.allowed){
     });
   };
 
-  function start(me){
+  function start(me, fromCache){
     window.__BOOT__ = {
       allowed: true,
       email: me.user.email,
@@ -3117,7 +3236,10 @@ if(BOOT.allowed){
       rights: me.rights,
       config: me.config,
       people: me.people,
-      mail: me.mail
+      mail: me.mail,
+      journal: me.journal || null,
+      clients: me.clients || null,
+      fromCache: !!fromCache
     };
     gate.remove();
     startApp();
@@ -3133,6 +3255,7 @@ if(BOOT.allowed){
     try {
       const me = await API.call('auth.exchange', { code: q.get('code'), state: q.get('state') });
       API.remember(me.session);
+      KEEP.write(me.session, me);
       history.replaceState(null, '', location.pathname);
       return start(me);
     } catch(e){
@@ -3143,9 +3266,37 @@ if(BOOT.allowed){
   }
 
   /* 2. Може, сесія ще жива з минулого разу. */
-  if(API.session()){
-    try { return start(await API.call('auth.me')); }
-    catch(e){ API.remember(''); }
+  const sid = API.session();
+  if(sid){
+    // Запит до служби вже в дорозі — його пустили з шапки сторінки.
+    const answer = window.__ME__ || API.call('auth.me');
+    const kept = KEEP.read(sid);
+
+    if(kept){
+      // Малюємо негайно з пам'яті, а на службу чекаємо вже на ходу.
+      start(kept, true);
+      try {
+        const me = await answer;
+        KEEP.write(sid, me);
+        if(window.__FRESH__) window.__FRESH__(me, kept);
+      } catch(e){
+        if(/зв.язку/.test(e.message || '')){
+          // Просто немає мережі: сесію не чіпаємо, працюємо з відкладеного.
+          if(window.__TOAST__) window.__TOAST__('Служба не відповідає — дані з минулого разу');
+        } else {
+          // Сесія скінчилася: витираємо все й показуємо вхід наново.
+          API.remember(''); KEEP.forget(); location.reload();
+        }
+      }
+      return;
+    }
+
+    try {
+      const me = await answer;
+      KEEP.write(sid, me);
+      return start(me);
+    }
+    catch(e){ API.remember(''); KEEP.forget(); }
   }
 
   /* 3. Ні — показуємо вікно входу. */
@@ -3174,6 +3325,7 @@ if(BOOT.allowed){
     try {
       const me = await API.call('auth.password', { email: email, password: pass });
       API.remember(me.session);
+      KEEP.write(me.session, me);
       start(me);
     } catch(e){ fail(e.message); }
   });
