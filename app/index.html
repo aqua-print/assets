@@ -468,6 +468,17 @@ pre.letter{
 .jbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .jbar input[type=text]{flex:1;min-width:220px}
 .jall{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--soft);white-space:nowrap}
+.jdates{display:flex;align-items:center;gap:6px}
+.jdates input[type=date]{
+  font:inherit;font-size:13.5px;padding:7px 9px;border-radius:5px;
+  border:1px solid var(--rule-hard);background:var(--card);color:var(--ink);
+}
+.jdash{color:var(--soft)}
+.jclear{
+  background:none;border:0;padding:0 4px;cursor:pointer;
+  color:var(--soft);font-size:17px;line-height:1;
+}
+.jclear:hover{color:var(--alert)}
 .jall input{accent-color:var(--cyan)}
 
 .jrow{
@@ -781,6 +792,12 @@ pre.letter{
 <section id="view-journal" hidden>
   <div class="jbar">
     <input type="text" id="jQuery" placeholder="пошук за замовником, темою або автором" autocomplete="off">
+    <span class="jdates">
+      <input type="date" id="jFrom" title="від якої дати">
+      <span class="jdash">—</span>
+      <input type="date" id="jTo" title="до якої дати">
+      <button class="jclear" type="button" id="jDatesClear" hidden title="прибрати дати">×</button>
+    </span>
     <label class="jall" id="jAllWrap" hidden><input type="checkbox" id="jAll"> усі замовлення</label>
     <button class="btn" id="jReload" type="button">Оновити</button>
   </div>
@@ -1990,13 +2007,17 @@ function fmtWhen(v){
 function loadJournal(force){
   const scope = $('#jAll').checked ? 'all' : 'mine';
   const query = $('#jQuery').value.trim();
-  const key = scope + '|' + query;
+  const from = $('#jFrom').value;
+  const to = $('#jTo').value;
+  const key = scope + '|' + query + '|' + from + '|' + to;
+
+  $('#jDatesClear').hidden = !(from || to);
 
   if(!force && journalCache && key === journalKey){ renderJournal(); return; }
 
   const box = $('#jList');
   if(!journalCache || key !== journalKey) box.textContent = 'Завантаження…';
-  srv('orders.list', { scope: scope, query: query, limit: 200 })
+  srv('orders.list', { scope: scope, query: query, from: from, to: to, limit: 200 })
     .then(res=>{
       journalCache = res.orders || [];
       journalKey = key;
@@ -2595,6 +2616,18 @@ Array.from(document.querySelectorAll('.tab')).forEach(t=>{
 
 $('#jReload').addEventListener('click', ()=>loadJournal(true));
 $('#jAll').addEventListener('change', ()=>loadJournal(true));
+
+['jFrom','jTo'].forEach(id=>$('#'+id).addEventListener('change', ()=>{
+  // Якщо межі переплутали місцями — міняємо самі, замість показувати порожньо.
+  const a = $('#jFrom').value, b = $('#jTo').value;
+  if(a && b && a > b){ $('#jFrom').value = b; $('#jTo').value = a; }
+  loadJournal(true);
+}));
+
+$('#jDatesClear').addEventListener('click', ()=>{
+  $('#jFrom').value = ''; $('#jTo').value = '';
+  loadJournal(true);
+});
 let jTimer = null;
 $('#jQuery').addEventListener('input', ()=>{
   clearTimeout(jTimer);
@@ -2731,7 +2764,7 @@ function prefetchTabs(){
     // Якщо людина встигла відкрити вкладку сама — не чіпаємо свіжіші дані.
     if(r[0] && r[0].ok && !journalCache){
       journalCache = r[0].data.orders || [];
-      journalKey = 'mine|';
+      journalKey = 'mine|||';
       if(currentView === 'journal') renderJournal();
     }
     if(r[1] && r[1].ok && !clientsCache){
