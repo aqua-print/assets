@@ -468,6 +468,28 @@ pre.letter{
 .jbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .jbar input[type=text]{flex:1;min-width:220px}
 .jall{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--soft);white-space:nowrap}
+/* Випадний список збережених замовників під полем «Замовник». */
+.cbox{position:relative}
+.cdrop{
+  position:absolute;right:6px;bottom:6px;width:24px;height:26px;
+  background:none;border:0;cursor:pointer;color:var(--soft);font-size:12px;line-height:1;
+}
+.cdrop:hover{color:var(--ink)}
+.cmenu{
+  position:absolute;left:0;right:0;top:100%;z-index:40;margin-top:3px;
+  background:var(--card);border:1px solid var(--rule-hard);border-radius:6px;
+  box-shadow:0 8px 22px rgba(0,0,0,.14);
+  max-height:260px;overflow-y:auto;padding:4px;
+}
+.citem{
+  display:flex;align-items:baseline;gap:8px;justify-content:space-between;
+  padding:7px 9px;border-radius:4px;cursor:pointer;font-size:14px;
+}
+.citem:hover,.citem.on{background:var(--paper)}
+.citem b{font-weight:600}
+.citem span{color:var(--soft);font-size:12px;white-space:nowrap}
+.cempty{padding:9px 10px;color:var(--soft);font-size:13px}
+
 .jdates{display:flex;align-items:center;gap:6px}
 .jdates input[type=date]{
   font:inherit;font-size:13.5px;padding:7px 9px;border-radius:5px;
@@ -643,9 +665,13 @@ pre.letter{
 <!-- ================= СМУГА ПАРАМЕТРІВ ================= -->
 <div id="view-form">
 <div class="strip">
-  <label class="fld">
+  <label class="fld cbox">
     <span>Замовник</span>
-    <input type="text" id="client" placeholder="Ігор Лофт" autocomplete="off">
+    <input type="text" id="client" placeholder="Ігор Лофт" autocomplete="off"
+           role="combobox" aria-expanded="false" aria-autocomplete="list">
+    <button class="cdrop" type="button" id="clientDrop" tabindex="-1"
+            title="показати збережених замовників">▾</button>
+    <div class="cmenu" id="clientMenu" hidden></div>
   </label>
   <label class="fld">
     <span>Шлях до папки</span>
@@ -2637,10 +2663,121 @@ $('#jQuery').addEventListener('input', ()=>{
 $('#saveClient').addEventListener('click', saveClientFromForm);
 $('#saveSet').addEventListener('click', saveSetFromForm);
 
+
+/* ============================================================
+ *  Швидкий вибір замовника просто з форми
+ *
+ *  Вкладка «Замовники» лишається для перегляду й упорядкування,
+ *  але щоб підставити картку, туди ходити більше не треба.
+ * ============================================================ */
+
+let cmOpen = false;     // чи розгорнуто список
+let cmIndex = -1;       // підсвічений рядок, для стрілок
+
+function clientsFor(text){
+  if(!clientsCache) return [];
+  const q = String(text || '').trim().toLowerCase();
+  const list = clientsCache.filter(c=>!q || String(c.name).toLowerCase().includes(q));
+  // Свої вище за чужі, далі за абеткою — так знайоме ім'я трапляється першим.
+  return list.sort((a,b)=>
+    (b.mine ? 1 : 0) - (a.mine ? 1 : 0) ||
+    String(a.name).localeCompare(String(b.name), 'uk')
+  ).slice(0, 12);
+}
+
+function clientNote(c){
+  const bits = [];
+  if(!c.mine) bits.push(c.visibility === 'company' ? 'спільна' : 'поділились');
+  if(c.sets && c.sets.length) bits.push(c.sets.length + ' наб.');
+  return bits.join(' · ');
+}
+
+function openClientMenu(all){
+  const box = $('#clientMenu');
+  const list = clientsFor(all ? '' : $('#client').value);
+  box.innerHTML = '';
+  cmIndex = -1;
+
+  if(!clientsCache){
+    box.innerHTML = '<div class="cempty">Картки ще вантажаться…</div>';
+  } else if(!list.length){
+    box.innerHTML = '<div class="cempty">' +
+      (clientsCache.length ? 'Нічого не знайшлося' :
+       'Збережених замовників ще немає — збережіть картку кнопкою внизу') + '</div>';
+  } else {
+    list.forEach((c, i)=>{
+      const row = document.createElement('div');
+      row.className = 'citem';
+      row.dataset.i = i;
+      const n = document.createElement('b'); n.textContent = c.name;
+      const note = document.createElement('span'); note.textContent = clientNote(c);
+      row.append(n, note);
+      // mousedown, а не click: інакше поле встигає втратити фокус і список
+      // закривається раніше, ніж натискання дійде.
+      row.addEventListener('mousedown', e=>{ e.preventDefault(); pickClient(c); });
+      box.append(row);
+    });
+  }
+
+  box.hidden = false;
+  cmOpen = true;
+  $('#client').setAttribute('aria-expanded', 'true');
+}
+
+function closeClientMenu(){
+  $('#clientMenu').hidden = true;
+  cmOpen = false;
+  cmIndex = -1;
+  $('#client').setAttribute('aria-expanded', 'false');
+}
+
+function markClientRow(){
+  const rows = Array.from($('#clientMenu').querySelectorAll('.citem'));
+  rows.forEach((r, i)=>r.classList.toggle('on', i === cmIndex));
+  if(rows[cmIndex]) rows[cmIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function pickClient(c){
+  $('#client').value = c.name;
+  lastApplied = c.name;
+  applyClient(c);
+  renderSetButtons();
+  update();
+  closeClientMenu();
+  $('#path').focus();
+}
+
+$('#clientDrop').addEventListener('mousedown', e=>{
+  e.preventDefault();
+  if(cmOpen) closeClientMenu();
+  else { openClientMenu(true); $('#client').focus(); }
+});
+
+$('#client').addEventListener('focus', ()=>{ if(!cmOpen) openClientMenu(false); });
+
+$('#client').addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && cmOpen){ closeClientMenu(); e.stopPropagation(); return; }
+  if(!cmOpen && (e.key === 'ArrowDown')){ openClientMenu(false); return; }
+  if(!cmOpen) return;
+
+  const rows = $('#clientMenu').querySelectorAll('.citem');
+  if(!rows.length) return;
+
+  if(e.key === 'ArrowDown'){ e.preventDefault(); cmIndex = (cmIndex + 1) % rows.length; markClientRow(); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); cmIndex = (cmIndex - 1 + rows.length) % rows.length; markClientRow(); }
+  else if(e.key === 'Enter' && cmIndex >= 0){
+    e.preventDefault();
+    pickClient(clientsFor($('#client').value)[cmIndex]);
+  }
+});
+
+$('#client').addEventListener('blur', ()=>setTimeout(closeClientMenu, 120));
+
 // Вписали замовника, який збігся з карткою — службові поля підтягуються.
 let lastApplied = '';
 $('#client').addEventListener('input', ()=>{
   const name = $('#client').value.trim();
+  openClientMenu(false);
   renderSetButtons();
   if(!name || name === lastApplied) return;
   const c = clientByName(name);
