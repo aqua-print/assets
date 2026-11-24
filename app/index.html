@@ -689,6 +689,9 @@ pre.letter{
   font-size:11px;padding:1px 7px;border-radius:5px;
   background:var(--warn-fill);color:var(--warn);
 }
+/* Термінові замовлення мають впізнаватися з одного погляду на список. */
+.jrow.hot .jclient{color:var(--alert)}
+.jtag.hot{background:var(--alert-fill);color:var(--alert);font-weight:600;letter-spacing:.02em}
 
 .cgroup{margin-bottom:22px}
 .cgroup h4{margin:0 0 8px;font-size:12.5px;color:var(--soft);font-weight:600}
@@ -2399,6 +2402,12 @@ function renderJournal(){
       .filter(Boolean).join(' · ');
 
     row.append(d, c);
+    if(o.urgent){
+      row.classList.add('hot');
+      const t = document.createElement('span');
+      t.className = 'jtag hot'; t.textContent = 'ТЕРМІНОВО';
+      row.append(t);
+    }
     if(o.mode === 'підготовка'){
       const t = document.createElement('span');
       t.className = 'jtag'; t.textContent = 'підготовка';
