@@ -547,6 +547,24 @@ pre.letter{
 .btn:hover{border-color:var(--ink)}
 .btn.primary{background:var(--cyan);border-color:var(--cyan);color:#fff;font-weight:500}
 .thm.warn{border-color:var(--alert);color:var(--alert);font-weight:600}
+
+/* Смуга про прив'язку пошти. Жовта — строк добігає, червона — вийшов. */
+.mailstrip{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin:0 0 14px;padding:11px 14px;border-radius:6px;
+  background:var(--warn-fill);border:1px solid var(--warn);
+  font-size:14px;line-height:1.45;
+}
+.mailstrip.bad{background:var(--alert-fill);border-color:var(--alert)}
+.mailstrip b{font-weight:600}
+.mailstrip .grow{flex:1;min-width:240px}
+.mailstrip button{
+  font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;
+  padding:7px 13px;border-radius:5px;white-space:nowrap;
+  border:1px solid var(--warn);background:transparent;color:var(--ink);
+}
+.mailstrip.bad button{border-color:var(--alert);color:var(--alert)}
+.mailstrip button:hover{background:var(--card)}
 :root[data-theme="dark"] .btn.primary{color:#0B1B22}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0B1B22}}
 .btn.primary:hover{filter:brightness(1.08)}
@@ -820,6 +838,12 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
   <button class="tab" data-view="clients" type="button">Замовники</button>
   <button class="tab" data-view="admin" type="button" hidden>Адміністрування</button>
 </nav>
+
+<!-- Строк дозволу Google на надсилання пошти. Видно на всіх вкладках. -->
+<div class="mailstrip" id="mailStrip" hidden>
+  <span class="grow" id="mailStripText"></span>
+  <button type="button" id="mailStripBtn">Оновити прив’язку</button>
+</div>
 
 <!-- ================= СМУГА ПАРАМЕТРІВ ================= -->
 <div id="view-form">
@@ -1767,6 +1791,12 @@ function buildHtmlBody(){
 function validate(){
   const out = [];
   const path = $('#path').value.trim();
+
+  // Без живого дозволу Google лист не піде — краще сказати це тут,
+  // ніж дати заповнити все й спіткнутися аж на «Подати».
+  const mailBad = mailTrouble();
+  if(mailBad) out.push(['err', mailBad]);
+
   const filled = mats.filter(m=>m.name.trim() || (m.ptype||'').trim() || m.procs.length || (m.note||'').trim() || m.prep);
 
   if(!$('#client').value.trim()) out.push(['err','Тема порожня — без імені замовника лист не знайдеться в пошті.']);
@@ -2086,6 +2116,77 @@ function applyTheme(t){
   $('#themeBtn').textContent = t === 'dark' ? 'Світла тема' : 'Темна тема';
   remember('theme', t);
 }
+/* ============================================================
+ *  Нагляд за прив'язкою пошти
+ *
+ *  Доки застосунок не пройшов перевірку Google, дозвіл на
+ *  надсилання живе рівно сім діб від миті прив'язки. Строк
+ *  відомий наперед, тож попереджаємо завчасно: оновити вранці —
+ *  п'ять секунд, спіймати посеред термінового замовлення —
+ *  зіпсований день.
+ *
+ *  Коли перевірку пройдемо, у службі ставиться LINK_DAYS = 0,
+ *  і вся ця смуга гасне сама.
+ * ============================================================ */
+
+/** «сьогодні о 10:24», «завтра о 10:24» або «25.11 о 10:24». */
+function mailWhen(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  const p = n => String(n).padStart(2,'0');
+  const midnight = v => { const x = new Date(v); x.setHours(0,0,0,0); return x; };
+  const days = Math.round((midnight(d) - midnight(new Date())) / 86400000);
+  const day = days === 0 ? 'сьогодні'
+            : days === 1 ? 'завтра'
+            : p(d.getDate()) + '.' + p(d.getMonth() + 1);
+  return day + ' о ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/**
+ * Скільки годин лишилось дозволу; null — строку немає взагалі.
+ * Рахуємо від точної дати, а не від числа, яке прислала служба:
+ * сторінку могли відкрити з пам'яті, а те число вже застаріло.
+ */
+function mailLeft(){
+  const m = BOOT.mail || {};
+  if(m.until) return Math.round((new Date(m.until) - Date.now()) / 36e5);
+  return (m.hoursLeft === null || m.hoursLeft === undefined) ? null : m.hoursLeft;
+}
+
+/** Текст біди з поштою — або порожнє, коли все гаразд. */
+function mailTrouble(){
+  if(BOOT.via === 'password') return '';
+  const m = BOOT.mail || {};
+  if(!m.linked) return 'Пошта не прив’язана — лист не піде.';
+  const left = mailLeft();
+  if(left !== null && left <= 0)
+    return 'Дозвіл на пошту закінчився — лист не піде, поки не оновите прив’язку.';
+  return '';
+}
+
+function mailWatch(){
+  const strip = $('#mailStrip');
+  const m = BOOT.mail || {};
+  const bad = mailTrouble();
+  const left = mailLeft();
+  let text = '';
+
+  if(bad){
+    text = bad + ' Натисніть «Оновити прив’язку» — Google перепитає дозвіл, це п’ять секунд.';
+    strip.classList.add('bad');
+  } else if(left !== null && left <= 24){
+    text = 'Дозвіл на пошту закінчується ' + mailWhen(m.until) +
+           ' — оновіть зараз, щоб не спіймати це посеред замовлення.';
+    strip.classList.remove('bad');
+  }
+
+  if(text) $('#mailStripText').textContent = text;
+  strip.hidden = !text;
+  $('#mailBtn').classList.toggle('warn', !!text);
+}
+
+$('#mailStripBtn').addEventListener('click',()=>$('#mailBtn').click());
+
 $('#mailBtn').addEventListener('click',()=>{
   const linked = BOOT.mail && BOOT.mail.linked;
   askConfirm(()=>API.login(), {
@@ -3073,10 +3174,7 @@ $('#client').addEventListener('input', ()=>{
   // Кнопка пароля — лише тим, хто ним і заходить. Решта входить через Google.
   if(BOOT.via === 'password') $('#passBtn').hidden = false;
 
-  if(BOOT.via !== 'password' && !(BOOT.mail && BOOT.mail.linked)){
-    $('#mailBtn').classList.add('warn');
-    setTimeout(()=>toast('Прив’яжіть пошту — без неї лист не піде'), 900);
-  }
+  mailWatch();
 })();
 
 /* ============================================================
@@ -3154,6 +3252,16 @@ function formTouched(){
 
 window.__TOAST__ = toast;
 
+/**
+ * Відбиток того, що на місці перемалювати не вийде. Строк прив'язки
+ * сюди навмисне не входить: він тане щогодини, і порівняння лічильника
+ * з лічильником перезавантажувало б сторінку мало не щоразу.
+ */
+function bootPrint(src){
+  const m = src.mail || {};
+  return JSON.stringify([src.config, src.people, src.rights, m.linked, m.linkedAt]);
+}
+
 window.__FRESH__ = function(fresh, old){
   seedJournal(fresh.journal);
   seedClients(fresh.clients);
@@ -3161,9 +3269,12 @@ window.__FRESH__ = function(fresh, old){
   if(currentView === 'journal' && journalKey === 'mine|||') renderJournal();
   if(currentView === 'clients') renderClients();
 
-  const same = ['config','people','rights','mail'].every(k=>
-    JSON.stringify(fresh[k]) === JSON.stringify(old[k]));
-  if(same) return;
+  // Строк прив'язки оновлюємо просто на місці — це не привід перемальовувати.
+  if(fresh.mail) BOOT.mail = fresh.mail;
+  mailWatch();
+  update();
+
+  if(bootPrint(fresh) === bootPrint(old)) return;
 
   if(formTouched()) toast('Налаштування змінилися — оновіть сторінку, як закінчите');
   else location.reload();
