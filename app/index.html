@@ -217,8 +217,9 @@ section.block > h2{
 }
 section.block > h2::after{content:"";flex:1;height:1px;background:var(--rule)}
 
-label.fld{display:block;margin-bottom:0}
-label.fld > span{display:block;font-size:11px;color:var(--soft);margin-bottom:3px}
+/* .fld — не лише label: поле менеджера містить два елементи, тож воно div. */
+.fld{display:block;margin-bottom:0}
+.fld > span{display:block;font-size:11px;color:var(--soft);margin-bottom:3px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 @media (max-width:520px){.row2{grid-template-columns:1fr}}
 
@@ -469,6 +470,11 @@ pre.letter{
 .jbar input[type=text]{flex:1;min-width:220px}
 .jall{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--soft);white-space:nowrap}
 /* Випадний список збережених замовників під полем «Замовник». */
+/* Поле менеджера: під списком може зʼявитися рядок для ручного імені.
+   Раніше він виносився в окремий рядок під усією смугою й губився. */
+.mgrfld{display:flex;flex-direction:column}
+.mgrfld #managerOther{margin-top:6px}
+
 .cbox{position:relative}
 .cdrop{
   position:absolute;right:6px;bottom:6px;width:24px;height:26px;
@@ -686,10 +692,12 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
     <input type="text" id="link" placeholder="https://…" title="Коли сервер недоступний — посилання на файлообмінник"
            autocomplete="off">
   </label>
-  <label class="fld">
+  <div class="fld mgrfld">
     <span>Менеджер</span>
-    <select id="manager"></select>
-  </label>
+    <select id="manager" aria-label="Менеджер"></select>
+    <input type="text" id="managerOther" autocomplete="off"
+           placeholder="імʼя менеджера" aria-label="Імʼя менеджера" hidden>
+  </div>
   <label class="fld">
     <span>Готовність</span>
     <div class="datewrap">
@@ -721,10 +729,6 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
   <div class="checks inline" id="ccManagerWrap" hidden>
     <label><input type="checkbox" id="ccManager"> Копія менеджеру</label>
   </div>
-  <label class="fld inline-fld" id="manager-other-wrap" hidden>
-    <span>Ім'я менеджера</span>
-    <input type="text" id="managerOther" autocomplete="off">
-  </label>
 </div>
 
 <div class="grid">
@@ -1976,7 +1980,7 @@ document.addEventListener('keydown',e=>{
   if(!$('#cal').hidden){ closeCal(); $('#readyBtn').focus(); }
 });
 $('#manager').addEventListener('change',e=>{
-  $('#manager-other-wrap').hidden = e.target.value !== '__other';
+  $('#managerOther').hidden = e.target.value !== '__other';
   syncManagerCc();
   update();
 });
@@ -2819,7 +2823,7 @@ $('#client').addEventListener('input', ()=>{
     sel.append(o);
   });
   const other = document.createElement('option');
-  other.value = '__other'; other.textContent = 'інше…';
+  other.value = '__other'; other.textContent = 'вказати вручну';
   sel.append(other);
 
   // Якщо той, хто зайшов, сам є в списку менеджерів — підставляємо його.
@@ -2832,7 +2836,7 @@ $('#client').addEventListener('input', ()=>{
     if(known){ sel.value = m; }
     else {
       sel.value = '__other';
-      $('#manager-other-wrap').hidden = false;
+      $('#managerOther').hidden = false;
       $('#managerOther').value = m;
     }
   }
