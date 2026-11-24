@@ -553,6 +553,10 @@ pre.letter{
   transition:max-height .26s ease, opacity .2s ease, padding-bottom .26s ease;
 }
 .asec-body.closed{max-height:0;opacity:0;padding-bottom:0}
+/* Стовпці, у яких назва сама по собі нічого не пояснює: під нею
+   пунктир, а при наведенні виринає підказка браузера. */
+th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
+
 .ascroll{overflow-x:auto;overflow-y:hidden}
 .ascroll > .atable{min-width:560px}
 @media (prefers-reduced-motion:reduce){.asec-body{transition:none}}
@@ -2409,7 +2413,17 @@ function adminTable(headers){
   t.className = 'atable';
   const thead = document.createElement('thead');
   const tr = document.createElement('tr');
-  headers.forEach(h=>{ const th = document.createElement('th'); th.textContent = h; tr.append(th); });
+  headers.forEach(h=>{
+    const th = document.createElement('th');
+    if(Array.isArray(h)){
+      th.textContent = h[0];
+      th.title = h[1];
+      th.className = 'hashint';
+    } else {
+      th.textContent = h;
+    }
+    tr.append(th);
+  });
   thead.append(tr); t.append(thead);
   const tb = document.createElement('tbody');
   t.append(tb);
@@ -2447,18 +2461,31 @@ function renderAdmin(users, cfg){
   box.innerHTML = '';
 
   /* --- користувачі --- */
-  const us = adminSection('Користувачі', true);
-  const ut = adminTable(['Пошта','Імʼя','Посада','Старший','Керівник','Готує макети','Активний']);
+  const us = adminSection('Люди', true);
+  const ut = adminTable([
+    'Пошта', 'Імʼя', 'Посада',
+    ['Менеджер',    'Показувати в списку «Менеджер» у листі. Заходити в застосунок це не дозволяє.'],
+    ['Старший',     'Старший напрямку: може заводити й редагувати людей, процеси, відділи та матеріали.'],
+    ['Керівник',    'Може те саме, що старший, і додатково: бачить журнал усіх, роздає позначки «старший» і «керівник».'],
+    ['Готує макети','Потрапляє в адресати, коли замовлення йде на підготовку, а не прямо в цех.'],
+    ['Активний',    'Чи може людина заходити в застосунок. Знята позначка не видаляє її й не ховає зі списку менеджерів.']
+  ]);
   const drawUser = (u)=>{
     const tr = document.createElement('tr');
-    const save = patch => srv('users.save', Object.assign({ email: u.email }, u, patch))
+    // key — щоб рядок знайшовся навіть тоді, коли міняють саму пошту
+    // або коли пошти немає зовсім.
+    const key = u.email || u.name;
+    const save = patch => srv('users.save', Object.assign({ key: key }, u, patch))
       .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
 
-    const mail = document.createElement('td'); mail.textContent = u.email;
+    const mail = document.createElement('td');
+    mail.append(cellInput(u.email, v=>{ u.email = v; save({ email: v }); }, '230px'));
     const name = document.createElement('td');
     name.append(cellInput(u.name, v=>{ u.name = v; save({ name: v }); }));
     const pos = document.createElement('td');
     pos.append(cellInput(u.position, v=>{ u.position = v; save({ position: v }); }, '180px'));
+    const mg = document.createElement('td');
+    mg.append(cellCheck(u.manager, v=>{ u.manager = v; save({ manager: v }); }));
     const sen = document.createElement('td');
     sen.append(cellCheck(u.senior, v=>{ u.senior = v; save({ senior: v }); }, !RIGHTS.grantRoles));
     const ch = document.createElement('td');
@@ -2468,7 +2495,7 @@ function renderAdmin(users, cfg){
     const ac = document.createElement('td');
     ac.append(cellCheck(u.active, v=>{ u.active = v; save({ active: v }); }));
 
-    tr.append(mail, name, pos, sen, ch, pr, ac);
+    tr.append(mail, name, pos, mg, sen, ch, pr, ac);
     ut._body.append(tr);
   };
   users.forEach(drawUser);
@@ -2476,13 +2503,18 @@ function renderAdmin(users, cfg){
 
   const addU = document.createElement('button');
   addU.type='button'; addU.className='addmat'; addU.style.marginTop='10px';
-  addU.textContent = 'Додати користувача';
+  addU.textContent = 'Додати людину';
   addU.addEventListener('click', ()=>{
-    const email = window.prompt('Пошта нового користувача');
-    if(!email) return;
-    const name = window.prompt('Імʼя', '') || '';
+    const name = window.prompt('Імʼя');
+    if(!name) return;
+    const email = window.prompt('Пошта (порожня — якщо людина лише в списку менеджерів)', '') || '';
     const position = window.prompt('Посада', 'менеджер') || '';
-    srv('users.save', { email: email.trim(), name: name, position: position, active: true })
+    const mail = email.trim();
+    srv('users.save', {
+      email: mail, name: name, position: position,
+      manager: !mail || window.confirm('Показувати в списку «Менеджер» у листі?'),
+      active: !!mail
+    })
       .then(()=>{ toast('Додано'); loadAdmin(true); })
       .catch(e=>toast('Помилка: ' + e.message));
   });
@@ -2495,36 +2527,6 @@ function renderAdmin(users, cfg){
   }
   box.append(us);
 
-  /* --- менеджери в листі --- */
-  const ms = adminSection('Менеджери — список для поля в листі', false);
-  const mt = adminTable(['Імʼя','Пошта','Активний']);
-  (cfg.managers || []).forEach(m=>{
-    const tr = document.createElement('tr');
-    const save = patch => srv('managers.save', Object.assign({ id: m.id, name: m.name, email: m.mail }, patch))
-      .then(()=>toast('Збережено')).catch(e=>toast('Помилка: ' + e.message));
-    const n = document.createElement('td');
-    n.append(cellInput(m.name, v=>{ m.name = v; save({ name: v }); }));
-    const e = document.createElement('td');
-    e.append(cellInput(m.mail, v=>{ m.mail = v; save({ email: v }); }, '220px'));
-    const a = document.createElement('td');
-    a.append(cellCheck(true, v=>save({ active: v })));
-    tr.append(n, e, a);
-    mt._body.append(tr);
-  });
-  ms._body.append(mt);
-  const addM = document.createElement('button');
-  addM.type='button'; addM.className='addmat'; addM.style.marginTop='10px';
-  addM.textContent = 'Додати менеджера';
-  addM.addEventListener('click', ()=>{
-    const name = window.prompt('Імʼя менеджера');
-    if(!name) return;
-    const mail = window.prompt('Пошта (можна лишити порожньою)', '') || '';
-    srv('managers.save', { name: name, email: mail, active: true })
-      .then(()=>{ toast('Додано'); loadAdmin(true); })
-      .catch(e=>toast('Помилка: ' + e.message));
-  });
-  ms._body.append(addM);
-  box.append(ms);
 
   if(!RIGHTS.manageCatalog) return;
 
