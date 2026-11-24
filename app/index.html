@@ -474,13 +474,14 @@ pre.letter{
    Раніше він виносився в окремий рядок під усією смугою й губився. */
 /* Позначка «терміново» — навмисне гучна: її мають помітити й той,
    хто подає замовлення, і той, хто потім читає тему листа. */
-.urg{display:flex;flex-direction:column;justify-content:flex-start}
-.urgbox{
+.rdyfld{display:flex;flex-direction:column}
+.rdyfld > .urgbox{
   display:flex;align-items:center;gap:7px;white-space:nowrap;
-  font-size:15px;font-weight:700;letter-spacing:.04em;color:var(--alert);
-  padding:7px 2px;cursor:pointer;
+  margin-top:7px;font-size:14.5px;font-weight:700;letter-spacing:.04em;
+  color:var(--alert);cursor:pointer;
 }
-.urgbox input{accent-color:var(--alert);width:16px;height:16px;cursor:pointer}
+.rdyfld > .urgbox input{accent-color:var(--alert);width:16px;height:16px;cursor:pointer}
+.rdyfld > .urgbox:has(input:disabled){cursor:default}
 
 .mgrfld{display:flex;flex-direction:column}
 .mgrfld #managerOther{margin-top:6px}
@@ -708,7 +709,7 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
     <input type="text" id="managerOther" autocomplete="off"
            placeholder="імʼя менеджера" aria-label="Імʼя менеджера" hidden>
   </div>
-  <label class="fld">
+  <div class="fld rdyfld">
     <span>Готовність</span>
     <div class="datewrap">
       <button type="button" class="datefield" id="readyBtn" aria-haspopup="dialog" aria-expanded="false">
@@ -729,14 +730,13 @@ th.hashint{cursor:help;border-bottom:1px dotted var(--rule-hard)}
         </div>
       </div>
     </div>
-  </label>
+    <label class="urgbox" title="Додає слово ТЕРМІНОВО в тему листа">
+      <input type="checkbox" id="urgent"> ТЕРМІНОВО
+    </label>
+  </div>
   <label class="fld">
     <span>Час</span>
     <input type="time" id="readytime">
-  </label>
-  <label class="fld urg" title="Додає слово ТЕРМІНОВО в тему листа">
-    <span>&nbsp;</span>
-    <span class="urgbox"><input type="checkbox" id="urgent"> ТЕРМІНОВО</span>
   </label>
 </div>
 <div class="striprow">
@@ -1577,7 +1577,7 @@ function urgentForced(){
 
 function syncUrgent(){
   const box = $('#urgent');
-  const wrap = box.closest('.urg');
+  const wrap = box.closest('.urgbox');
   const forced = urgentForced();
 
   box.disabled = forced;
